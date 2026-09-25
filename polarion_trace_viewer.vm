@@ -259,9 +259,11 @@ function tvApplyTrace(e) {
 
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        #set($query = "id:" + $selectedReqId)
+        ## Quote the ID in Lucene query so hyphens (e.g. 0030-57578) are treated as literal text, not Lucene NOT operator
+        #set($q = '"')
+        #set($query = "id:" + $q + $selectedReqId + $q)
         #if($currentProjId && $currentProjId != "Global / Unassigned")
-            #set($query = "project.id:" + $currentProjId + " AND id:" + $selectedReqId)
+            #set($query = "project.id:" + $q + $currentProjId + $q + " AND id:" + $q + $selectedReqId + $q)
         #end
 
         #set($workItems = $trackerService.queryWorkItems($query, "id"))
