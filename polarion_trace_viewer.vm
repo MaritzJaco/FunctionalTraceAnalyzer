@@ -1,11 +1,14 @@
 ## Polarion ALM Functional Trace Viewer (Apache Velocity Script)
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
+## Parameter Priority:
+## 1. Direct URL query parameter (reqId) - entered via text box / Apply button
+## 2. Rich Page parameter ($pageParameters.reqId) - set via page settings
 #set($selectedReqId = "")
-#if($request.getParameter("reqId") && $request.getParameter("reqId") != "")
-    #set($selectedReqId = $request.getParameter("reqId"))
-#elseif($pageParameters && $pageParameters.get("reqId"))
-    #set($selectedReqId = $pageParameters.get("reqId").value)
+#if($request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
+    #set($selectedReqId = $request.getParameter("reqId").trim())
+#elseif($pageParameters && $pageParameters.get("reqId") && $pageParameters.get("reqId").value && $pageParameters.get("reqId").value.trim() != "")
+    #set($selectedReqId = $pageParameters.get("reqId").value.trim())
 #end
 
 <style>
@@ -150,6 +153,7 @@
 .tv-badge-test { background: #dcfce7; color: #166534; }
 .tv-badge-bug { background: #fee2e2; color: #991b1b; }
 .tv-badge-task { background: #f3e8ff; color: #6b21a8; }
+.tv-badge-proj { background: #e0e7ff; color: #3730a3; }
 .tv-rel {
     font-size: 11px;
     color: #0284c7;
@@ -184,6 +188,49 @@
 }
 </style>
 
+<script type="text/javascript">
+function tvApplyTrace(e) {
+    if (e && e.preventDefault) { e.preventDefault(); }
+    var input = document.getElementById('tvReqInput');
+    if (!input) return false;
+    var val = input.value.trim();
+    if (!val) return false;
+
+    var loc = window.location;
+    try {
+        if (window.top && window.top.location && window.top.location.href) {
+            loc = window.top.location;
+        }
+    } catch(err) {}
+
+    var href = loc.href;
+    if (href.indexOf('reqId=') !== -1) {
+        href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
+    } else {
+        if (href.indexOf('#') !== -1) {
+            var parts = href.split('#');
+            var base = parts[0];
+            var hash = parts.slice(1).join('#');
+            var sep = base.indexOf('?') !== -1 ? '&' : '?';
+            href = base + sep + 'reqId=' + encodeURIComponent(val) + '#' + hash;
+        } else {
+            var sep = href.indexOf('?') !== -1 ? '&' : '?';
+            href = href + sep + 'reqId=' + encodeURIComponent(val);
+        }
+    }
+
+    loc.href = href;
+    return false;
+}
+</script>
+
+#set($currentProjId = "Global / Unassigned")
+#if($page && $page.project && $page.project.id)
+    #set($currentProjId = $page.project.id)
+#elseif($project && $project.id)
+    #set($currentProjId = $project.id)
+#end
+
 <div class="polarion-trace-viewer">
     <!-- Header & Form -->
     <div class="tv-card">
@@ -191,17 +238,20 @@
             <div class="tv-title">
                 <span>🔗</span> Polarion Functional Requirement Trace Viewer
             </div>
-            <span style="font-size:12px; color:#64748b;">Polarion Open Java API Engine</span>
+            <div>
+                <span class="tv-badge tv-badge-proj">Project: $!currentProjId</span>
+                <span style="font-size:12px; color:#64748b; margin-left:8px;">Polarion Java API</span>
+            </div>
         </div>
 
-        <form id="tvTraceForm" method="GET" action="">
+        <form id="tvTraceForm" onsubmit="return tvApplyTrace(event);">
             <div class="tv-form-group">
                 <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID or Key:</label>
                 <div class="tv-input-row">
                     <input type="text" id="tvReqInput" name="reqId" class="tv-input-text"
                            value="$!selectedReqId"
-                           placeholder="e.g. REQ-101 or FUNC-204" />
-                    <button type="submit" class="tv-btn tv-btn-primary">⚡ Apply / Run Trace</button>
+                           placeholder="e.g. REQ-101, 0030-57578, or FUNC-204" />
+                    <button type="button" class="tv-btn tv-btn-primary" onclick="tvApplyTrace(event);">⚡ Apply / Run Trace</button>
                 </div>
             </div>
         </form>
@@ -209,17 +259,9 @@
 
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        #set($projectId = "")
-        #if($page && $page.project)
-            #set($projectId = $page.project.id)
-        #elseif($project && $project.id)
-            #set($projectId = $project.id)
-        #end
-
-        ## Search work item using Polarion Tracker Service with clean Velocity string concatenation
         #set($query = "id:" + $selectedReqId)
-        #if($projectId && $projectId != "")
-            #set($query = "project.id:" + $projectId + " AND id:" + $selectedReqId)
+        #if($currentProjId && $currentProjId != "Global / Unassigned")
+            #set($query = "project.id:" + $currentProjId + " AND id:" + $selectedReqId)
         #end
 
         #set($workItems = $trackerService.queryWorkItems($query, "id"))
@@ -227,7 +269,7 @@
         #if($workItems.isEmpty())
             <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
                 <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
-                No requirement found matching ID <code>$selectedReqId</code>#if($projectId && $projectId != "") in project <code>$projectId</code>#end.
+                No requirement found matching ID <code>$selectedReqId</code>#if($currentProjId && $currentProjId != "Global / Unassigned") in project <code>$currentProjId</code>#end.
             </div>
         #else
             #set($rootItem = $workItems.get(0))
@@ -281,7 +323,7 @@
             <!-- Metrics Dashboard -->
             <div class="tv-metrics-grid">
                 <div class="tv-metric-box">
-                    <div class="tv-metric-title">Root Requirement</div>
+                    <div class="tv-metric-title">Root Requirement ($!currentProjId)</div>
                     <div class="tv-metric-val">$!rootItem.id</div>
                     <div class="tv-metric-sub">$!rootItem.type.name | $!rootItem.status.name</div>
                 </div>
@@ -319,7 +361,7 @@
                                 <span class="tv-badge" style="background:#e2e8f0;">Status: $!rootItem.status.name</span>
                             </div>
                             <div style="font-size:12px; color:#64748b; margin-top:4px;">
-                                Author: $!rootItem.author.name | Updated: $!rootItem.updated
+                                Project: <strong>$!currentProjId</strong> | Author: $!rootItem.author.name | Updated: $!rootItem.updated
                             </div>
                         </div>
 
