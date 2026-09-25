@@ -1,6 +1,9 @@
 ## Polarion ALM Functional Trace Viewer (Apache Velocity Script)
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
+## Version Definition
+#set($scriptVersion = "v1.0.1")
+
 ## Parameter Priority:
 ## 1. Direct URL query parameter (reqId) - entered via text box / Apply button
 ## 2. Rich Page parameter ($pageParameters.reqId) - set via page settings
@@ -41,6 +44,15 @@
     display: flex;
     align-items: center;
     gap: 8px;
+}
+.tv-version-badge {
+    background: #2563eb;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
 }
 .tv-form-group {
     display: flex;
@@ -224,11 +236,17 @@ function tvApplyTrace(e) {
 }
 </script>
 
-#set($currentProjId = "Global / Unassigned")
+#set($currentProjId = "")
 #if($page && $page.project && $page.project.id)
     #set($currentProjId = $page.project.id)
 #elseif($project && $project.id)
     #set($currentProjId = $project.id)
+#elseif($trackerService && $trackerService.trackerProject && $trackerService.trackerProject.id)
+    #set($currentProjId = $trackerService.trackerProject.id)
+#end
+
+#if(!$currentProjId || $currentProjId == "")
+    #set($currentProjId = "Global / Unassigned")
 #end
 
 <div class="polarion-trace-viewer">
@@ -237,6 +255,7 @@ function tvApplyTrace(e) {
         <div class="tv-header">
             <div class="tv-title">
                 <span>🔗</span> Polarion Functional Requirement Trace Viewer
+                <span class="tv-version-badge">$scriptVersion</span>
             </div>
             <div>
                 <span class="tv-badge tv-badge-proj">Project: $!currentProjId</span>
@@ -259,11 +278,11 @@ function tvApplyTrace(e) {
 
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        ## Quote the ID in Lucene query so hyphens (e.g. 0030-57578) are treated as literal text, not Lucene NOT operator
+        ## Search work item using Polarion Tracker Service with Lucene wildcards and exact match fallback
         #set($q = '"')
-        #set($query = "id:" + $q + $selectedReqId + $q)
+        #set($query = "id:" + $q + $selectedReqId + $q + " OR id:*" + $selectedReqId)
         #if($currentProjId && $currentProjId != "Global / Unassigned")
-            #set($query = "project.id:" + $q + $currentProjId + $q + " AND id:" + $q + $selectedReqId + $q)
+            #set($query = "project.id:" + $q + $currentProjId + $q + " AND (id:" + $q + $selectedReqId + $q + " OR id:*" + $selectedReqId + ")")
         #end
 
         #set($workItems = $trackerService.queryWorkItems($query, "id"))
