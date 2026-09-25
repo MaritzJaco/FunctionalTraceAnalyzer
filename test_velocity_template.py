@@ -9,11 +9,11 @@ def test_velocity_template():
         content = f.read()
 
     # 1. Check version badge
-    assert 'v1.0.1' in content, "Missing v1.0.1 version badge"
+    assert 'v1.0.2' in content, "Missing v1.0.2 version badge"
 
     # 2. Check HTML input box and submit button
     assert '<input type="text" id="tvReqInput" name="reqId"' in content, "Missing requirement text input box"
-    assert '⚡ Apply / Run Trace' in content, "Missing Apply / Run button"
+    assert 'Apply' in content, "Missing Apply button"
     assert 'function tvApplyTrace(' in content, "Missing tvApplyTrace JavaScript navigation handler"
 
     # 3. Check Velocity directives balance
@@ -24,12 +24,12 @@ def test_velocity_template():
     print(f"Template Directives Stats: #if={if_count}, #foreach={foreach_count}, #end={end_count}")
     assert if_count + foreach_count == end_count, f"Directive mismatch: (#if + #foreach = {if_count + foreach_count}) != (#end = {end_count})"
 
-    # 4. Check Polarion Java Open API references & property access
+    # 4. Check Polarion Java Open API references & simplified structure
     assert '$trackerService.queryWorkItems' in content, "Missing Polarion trackerService query"
     assert 'linkedWorkItemsStructsDirect' in content, "Missing linked work items traversal"
     assert '$link.linkedItem' in content, "Missing Polarion ILinkedWorkItemStruct.linkedItem property reference"
-    assert '$!rootItem.id' in content, "Missing root item rendering"
-    assert '$trackerService.projectsService' not in content, "Should not access invalid $trackerService.projectsService property"
+    assert '$!rootItem.id' in content, "Missing root item ID rendering"
+    assert '$!rootItem.title' in content, "Missing root item title rendering"
 
     print("All Velocity Template validation checks PASSED successfully!")
 

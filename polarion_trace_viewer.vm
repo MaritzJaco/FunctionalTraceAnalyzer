@@ -2,7 +2,7 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.1")
+#set($scriptVersion = "v1.0.2")
 
 ## Parameter Priority:
 ## 1. Direct URL query parameter (reqId) - entered via text box / Apply button
@@ -18,7 +18,7 @@
 .polarion-trace-viewer {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #1e293b;
-    max-width: 1200px;
+    max-width: 1000px;
     margin: 10px 0;
 }
 .tv-card {
@@ -97,83 +97,13 @@
 .tv-btn-primary:hover {
     background: #1d4ed8;
 }
-.tv-metrics-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 20px;
-}
-.tv-metric-box {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    padding: 12px 16px;
-}
-.tv-metric-title {
-    font-size: 11px;
-    text-transform: uppercase;
-    color: #64748b;
-    font-weight: 700;
-}
-.tv-metric-val {
-    font-size: 22px;
-    font-weight: 700;
-    color: #0f172a;
-    margin: 4px 0;
-}
-.tv-metric-sub {
-    font-size: 11px;
-    color: #64748b;
-}
-
-/* Trace Tree Styling */
-.tv-tree {
-    margin-top: 15px;
-}
-.tv-tree-node {
-    margin-left: 20px;
-    border-left: 2px dashed #cbd5e1;
-    padding-left: 15px;
-    margin-top: 10px;
-}
-.tv-tree-node.root-node {
-    margin-left: 0;
-    border-left: none;
-    padding-left: 0;
-    margin-top: 0;
-}
-.tv-node-card {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    padding: 10px 14px;
-}
-.tv-node-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
 .tv-badge {
     padding: 3px 8px;
     border-radius: 12px;
     font-size: 11px;
     font-weight: 700;
 }
-.tv-badge-req { background: #dbeafe; color: #1e40af; }
-.tv-badge-sys { background: #fef3c7; color: #92400e; }
-.tv-badge-test { background: #dcfce7; color: #166534; }
-.tv-badge-bug { background: #fee2e2; color: #991b1b; }
-.tv-badge-task { background: #f3e8ff; color: #6b21a8; }
 .tv-badge-proj { background: #e0e7ff; color: #3730a3; }
-.tv-rel {
-    font-size: 11px;
-    color: #0284c7;
-    font-style: italic;
-    background: #e0f2fe;
-    padding: 2px 6px;
-    border-radius: 4px;
-}
 .tv-item-id {
     font-family: monospace;
     font-weight: 700;
@@ -181,12 +111,27 @@
 .tv-item-title {
     font-weight: 600;
 }
-
-/* Table Styling */
+.tv-req-banner {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+.tv-req-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.tv-req-meta {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
 .tv-table {
     width: 100%;
     border-collapse: collapse;
-    margin-top: 15px;
+    margin-top: 10px;
     font-size: 13px;
 }
 .tv-table th, .tv-table td {
@@ -197,6 +142,14 @@
 .tv-table th {
     background: #f1f5f9;
     font-weight: 600;
+}
+.tv-rel {
+    font-size: 11px;
+    color: #0284c7;
+    font-style: italic;
+    background: #e0f2fe;
+    padding: 2px 6px;
+    border-radius: 4px;
 }
 </style>
 
@@ -250,27 +203,26 @@ function tvApplyTrace(e) {
 #end
 
 <div class="polarion-trace-viewer">
-    <!-- Header & Form -->
+    <!-- Header & Input Form -->
     <div class="tv-card">
         <div class="tv-header">
             <div class="tv-title">
-                <span>🔗</span> Polarion Functional Requirement Trace Viewer
+                <span>🔗</span> Polarion Functional Trace Viewer
                 <span class="tv-version-badge">$scriptVersion</span>
             </div>
             <div>
                 <span class="tv-badge tv-badge-proj">Project: $!currentProjId</span>
-                <span style="font-size:12px; color:#64748b; margin-left:8px;">Polarion Java API</span>
             </div>
         </div>
 
         <form id="tvTraceForm" onsubmit="return tvApplyTrace(event);">
             <div class="tv-form-group">
-                <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID or Key:</label>
+                <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID:</label>
                 <div class="tv-input-row">
                     <input type="text" id="tvReqInput" name="reqId" class="tv-input-text"
                            value="$!selectedReqId"
-                           placeholder="e.g. REQ-101, 0030-57578, or FUNC-204" />
-                    <button type="button" class="tv-btn tv-btn-primary" onclick="tvApplyTrace(event);">⚡ Apply / Run Trace</button>
+                           placeholder="e.g. REQ-101, 0030-176, or FUNC-204" />
+                    <button type="button" class="tv-btn tv-btn-primary" onclick="tvApplyTrace(event);">Apply</button>
                 </div>
             </div>
         </form>
@@ -278,7 +230,7 @@ function tvApplyTrace(e) {
 
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        ## Search work item using Polarion Tracker Service with Lucene wildcards and exact match fallback
+        ## Search work item using Polarion Tracker Service
         #set($q = '"')
         #set($query = "id:" + $q + $selectedReqId + $q + " OR id:*" + $selectedReqId)
         #if($currentProjId && $currentProjId != "Global / Unassigned")
@@ -295,220 +247,71 @@ function tvApplyTrace(e) {
         #else
             #set($rootItem = $workItems.get(0))
 
-            ## Initialize collections for metrics tracking
-            #set($sysReqs = [])
-            #set($testCases = [])
-            #set($defects = [])
-            #set($tasks = [])
-
-            ## Traversal helper logic
-            #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
-            #foreach($link in $directLinks)
-                #set($target = false)
-                #set($target = $link.linkedItem)
-                #if($target)
-                    #set($targetType = false)
-                    #set($targetType = $target.type.id)
-
-                    #if($targetType && ($targetType.equals("systemRequirement") || $targetType.contains("system")))
-                        #set($dummy = $sysReqs.add($target))
-                    #elseif($targetType && ($targetType.equals("testcase") || $targetType.contains("test")))
-                        #set($dummy = $testCases.add($target))
-                    #elseif($targetType && ($targetType.equals("defect") || $targetType.equals("bug") || $targetType.contains("defect")))
-                        #set($dummy = $defects.add($target))
-                    #else
-                        #set($dummy = $tasks.add($target))
-                    #end
-
-                    ## Traverse 2nd level links from target
-                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
-                        #set($subTarget = false)
-                        #set($subTarget = $subLink.linkedItem)
-                        #if($subTarget)
-                            #set($subType = false)
-                            #set($subType = $subTarget.type.id)
-                            #if($subType && ($subType.equals("testcase") || $subType.contains("test")))
-                                #if(!$testCases.contains($subTarget))
-                                    #set($dummy = $testCases.add($subTarget))
-                                #end
-                            #elseif($subType && ($subType.equals("defect") || $subType.equals("bug") || $subType.contains("defect")))
-                                #if(!$defects.contains($subTarget))
-                                    #set($dummy = $defects.add($subTarget))
-                                #end
-                            #end
-                        #end
-                    #end
-                #end
-            #end
-
-            <!-- Metrics Dashboard -->
-            <div class="tv-metrics-grid">
-                <div class="tv-metric-box">
-                    <div class="tv-metric-title">Root Requirement ($!currentProjId)</div>
-                    <div class="tv-metric-val">$!rootItem.id</div>
-                    <div class="tv-metric-sub">$!rootItem.type.name | $!rootItem.status.name</div>
-                </div>
-                <div class="tv-metric-box">
-                    <div class="tv-metric-title">System Requirements</div>
-                    <div class="tv-metric-val">$sysReqs.size()</div>
-                    <div class="tv-metric-sub">Linked Downstream</div>
-                </div>
-                <div class="tv-metric-box">
-                    <div class="tv-metric-title">Test Cases</div>
-                    <div class="tv-metric-val">$testCases.size()</div>
-                    <div class="tv-metric-sub">Verification Coverage</div>
-                </div>
-                <div class="tv-metric-box">
-                    <div class="tv-metric-title">Defects / Bugs</div>
-                    <div class="tv-metric-val">$defects.size()</div>
-                    <div class="tv-metric-sub">Open Issues</div>
-                </div>
-            </div>
-
-            <!-- Trace Tree View Card -->
             <div class="tv-card">
-                <div class="tv-header">
-                    <div class="tv-title">🌳 Traceability Hierarchy Tree</div>
-                </div>
-
-                <div class="tv-tree">
-                    <!-- Root Node -->
-                    <div class="tv-tree-node root-node">
-                        <div class="tv-node-card" style="border-left: 4px solid #2563eb;">
-                            <div class="tv-node-header">
-                                <span class="tv-badge tv-badge-req">$!rootItem.type.name</span>
-                                <span class="tv-item-id">$!rootItem.id</span>
-                                <span class="tv-item-title">$!rootItem.title</span>
-                                <span class="tv-badge" style="background:#e2e8f0;">Status: $!rootItem.status.name</span>
-                            </div>
-                            <div style="font-size:12px; color:#64748b; margin-top:4px;">
-                                Project: <strong>$!currentProjId</strong> | Author: $!rootItem.author.name | Updated: $!rootItem.updated
-                            </div>
-                        </div>
-
-                        <!-- Level 1 Linked Items -->
-                        #foreach($link in $rootItem.linkedWorkItemsStructsDirect)
-                            #set($target = false)
-                            #set($target = $link.linkedItem)
-                            #if($target)
-                                #set($role = false)
-                                #set($role = $link.linkRole.name)
-                                #set($targetType = false)
-                                #set($targetType = $target.type.id)
-                                #set($targetTypeName = false)
-                                #set($targetTypeName = $target.type.name)
-                                #set($targetStatusName = false)
-                                #set($targetStatusName = $target.status.name)
-
-                                <div class="tv-tree-node">
-                                    <div class="tv-node-card">
-                                        <div class="tv-node-header">
-                                            <span class="tv-rel">⬅ $!role</span>
-                                            <span class="tv-badge #if($targetType && $targetType.contains('test'))tv-badge-test#elseif($targetType && $targetType.contains('sys'))tv-badge-sys#elseif($targetType && ($targetType.contains('bug') || $targetType.contains('defect')))tv-badge-bug#else tv-badge-task#end">
-                                                $!targetTypeName
-                                            </span>
-                                            <span class="tv-item-id">$!target.id</span>
-                                            <span class="tv-item-title">$!target.title</span>
-                                            <span class="tv-badge" style="background:#e2e8f0;">$!targetStatusName</span>
-                                        </div>
-
-                                        <!-- Level 2 Sub-linked Items -->
-                                        #foreach($subLink in $target.linkedWorkItemsStructsDirect)
-                                            #set($subTarget = false)
-                                            #set($subTarget = $subLink.linkedItem)
-                                            #if($subTarget)
-                                                #set($subRole = false)
-                                                #set($subRole = $subLink.linkRole.name)
-                                                #set($subType = false)
-                                                #set($subType = $subTarget.type.id)
-                                                #set($subTypeName = false)
-                                                #set($subTypeName = $subTarget.type.name)
-                                                #set($subStatusName = false)
-                                                #set($subStatusName = $subTarget.status.name)
-
-                                                <div class="tv-tree-node">
-                                                    <div class="tv-node-card" style="background:#f8fafc;">
-                                                        <div class="tv-node-header">
-                                                            <span class="tv-rel">⬅ $!subRole</span>
-                                                            <span class="tv-badge #if($subType && $subType.contains('test'))tv-badge-test#elseif($subType && ($subType.contains('bug') || $subType.contains('defect')))tv-badge-bug#else tv-badge-task#end">
-                                                                $!subTypeName
-                                                            </span>
-                                                            <span class="tv-item-id">$!subTarget.id</span>
-                                                            <span class="tv-item-title">$!subTarget.title</span>
-                                                            <span class="tv-badge" style="background:#e2e8f0;">$!subStatusName</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            #end
-                                        #end
-                                    </div>
-                                </div>
-                            #end
-                        #end
+                <!-- Requirement Title Banner -->
+                <div class="tv-req-banner">
+                    <div class="tv-req-title">
+                        Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
+                    </div>
+                    <div class="tv-req-meta">
+                        Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong> | Project: <strong>$!currentProjId</strong>
                     </div>
                 </div>
-            </div>
 
-            <!-- Trace Matrix Table Card -->
-            <div class="tv-card">
-                <div class="tv-header">
-                    <div class="tv-title">📋 Traceability Matrix Table</div>
+                <!-- Linked Items -->
+                <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
+                    Linked Items / Traceability Results
                 </div>
 
-                <table class="tv-table">
-                    <thead>
-                        <tr>
-                            <th>Level</th>
-                            <th>Work Item ID</th>
-                            <th>Type</th>
-                            <th>Relationship</th>
-                            <th>Title</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>Root (L0)</strong></td>
-                            <td><span class="tv-item-id">$!rootItem.id</span></td>
-                            <td>$!rootItem.type.name</td>
-                            <td><span class="tv-rel">Primary Requirement</span></td>
-                            <td>$!rootItem.title</td>
-                            <td>$!rootItem.status.name</td>
-                        </tr>
-                        #foreach($link in $rootItem.linkedWorkItemsStructsDirect)
-                            #set($target = false)
-                            #set($target = $link.linkedItem)
-                            #if($target)
-                                #set($role = false)
-                                #set($role = $link.linkRole.name)
-                                <tr>
-                                    <td>L1</td>
-                                    <td><span class="tv-item-id">$!target.id</span></td>
-                                    <td>$!target.type.name</td>
-                                    <td><span class="tv-rel">$!role</span></td>
-                                    <td>$!target.title</td>
-                                    <td>$!target.status.name</td>
-                                </tr>
-                                #foreach($subLink in $target.linkedWorkItemsStructsDirect)
-                                    #set($subTarget = false)
-                                    #set($subTarget = $subLink.linkedItem)
-                                    #if($subTarget)
-                                        #set($subRole = false)
-                                        #set($subRole = $subLink.linkRole.name)
-                                        <tr>
-                                            <td>L2</td>
-                                            <td><span class="tv-item-id">$!subTarget.id</span></td>
-                                            <td>$!subTarget.type.name</td>
-                                            <td><span class="tv-rel">$!subRole</span></td>
-                                            <td>$!subTarget.title</td>
-                                            <td>$!subTarget.status.name</td>
-                                        </tr>
+                #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
+                #if($directLinks.isEmpty())
+                    <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
+                #else
+                    <table class="tv-table">
+                        <thead>
+                            <tr>
+                                <th>Linked Work Item ID</th>
+                                <th>Relationship</th>
+                                <th>Type</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            #foreach($link in $directLinks)
+                                #set($target = false)
+                                #set($target = $link.linkedItem)
+                                #if($target)
+                                    #set($role = false)
+                                    #set($role = $link.linkRole.name)
+                                    <tr>
+                                        <td><span class="tv-item-id">$!target.id</span></td>
+                                        <td><span class="tv-rel">$!role</span></td>
+                                        <td>$!target.type.name</td>
+                                        <td>$!target.title</td>
+                                        <td>$!target.status.name</td>
+                                    </tr>
+                                    ## Check sub-links (level 2)
+                                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                                        #set($subTarget = false)
+                                        #set($subTarget = $subLink.linkedItem)
+                                        #if($subTarget)
+                                            #set($subRole = false)
+                                            #set($subRole = $subLink.linkRole.name)
+                                            <tr style="background:#f8fafc;">
+                                                <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
+                                                <td><span class="tv-rel">$!subRole</span></td>
+                                                <td>$!subTarget.type.name</td>
+                                                <td>$!subTarget.title</td>
+                                                <td>$!subTarget.status.name</td>
+                                            </tr>
+                                        #end
                                     #end
                                 #end
                             #end
-                        #end
-                    </tbody>
-                </table>
+                        </tbody>
+                    </table>
+                #end
             </div>
         #end
     #end
