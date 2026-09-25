@@ -155,37 +155,39 @@
 
 <script type="text/javascript">
 function tvApplyTrace(e) {
-    if (e && e.preventDefault) { e.preventDefault(); }
     var input = document.getElementById('tvReqInput');
-    if (!input) return false;
+    if (!input) return true;
     var val = input.value.trim();
     if (!val) return false;
 
-    var loc = window.location;
+    // Check if running inside Polarion iframe or widget block where standard form action might target frame
     try {
-        if (window.top && window.top.location && window.top.location.href) {
-            loc = window.top.location;
+        var topLoc = window.top.location.href;
+        if (topLoc) {
+            var href = topLoc;
+            if (href.indexOf('reqId=') !== -1) {
+                href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
+            } else {
+                if (href.indexOf('#') !== -1) {
+                    var parts = href.split('#');
+                    var base = parts[0];
+                    var hash = parts.slice(1).join('#');
+                    var sep = base.indexOf('?') !== -1 ? '&' : '?';
+                    href = base + sep + 'reqId=' + encodeURIComponent(val) + '#' + hash;
+                } else {
+                    var sep = href.indexOf('?') !== -1 ? '&' : '?';
+                    href = href + sep + 'reqId=' + encodeURIComponent(val);
+                }
+            }
+            if (e && e.preventDefault) { e.preventDefault(); }
+            window.top.location.href = href;
+            return false;
         }
-    } catch(err) {}
-
-    var href = loc.href;
-    if (href.indexOf('reqId=') !== -1) {
-        href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
-    } else {
-        if (href.indexOf('#') !== -1) {
-            var parts = href.split('#');
-            var base = parts[0];
-            var hash = parts.slice(1).join('#');
-            var sep = base.indexOf('?') !== -1 ? '&' : '?';
-            href = base + sep + 'reqId=' + encodeURIComponent(val) + '#' + hash;
-        } else {
-            var sep = href.indexOf('?') !== -1 ? '&' : '?';
-            href = href + sep + 'reqId=' + encodeURIComponent(val);
-        }
+    } catch(err) {
+        // Fall back to standard form GET submission if cross-origin or top location inaccessible
     }
 
-    loc.href = href;
-    return false;
+    return true;
 }
 </script>
 
@@ -215,14 +217,14 @@ function tvApplyTrace(e) {
             </div>
         </div>
 
-        <form id="tvTraceForm" onsubmit="return tvApplyTrace(event);">
+        <form id="tvTraceForm" method="GET" onsubmit="return tvApplyTrace(event);">
             <div class="tv-form-group">
                 <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID:</label>
                 <div class="tv-input-row">
                     <input type="text" id="tvReqInput" name="reqId" class="tv-input-text"
                            value="$!selectedReqId"
                            placeholder="e.g. REQ-101, 0030-176, or FUNC-204" />
-                    <button type="button" class="tv-btn tv-btn-primary" onclick="tvApplyTrace(event);">Apply</button>
+                    <button type="submit" class="tv-btn tv-btn-primary">Apply</button>
                 </div>
             </div>
         </form>

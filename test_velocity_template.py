@@ -13,7 +13,8 @@ def test_velocity_template():
 
     # 2. Check HTML input box and submit button
     assert '<input type="text" id="tvReqInput" name="reqId"' in content, "Missing requirement text input box"
-    assert 'Apply' in content, "Missing Apply button"
+    assert 'method="GET"' in content, "Missing GET form method"
+    assert '<button type="submit"' in content, "Missing submit button"
     assert 'function tvApplyTrace(' in content, "Missing tvApplyTrace JavaScript navigation handler"
 
     # 3. Check Velocity directives balance
