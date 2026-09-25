@@ -1,0 +1,452 @@
+## Polarion ALM Functional Trace Viewer (Apache Velocity Script)
+## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
+
+#set($selectedReqId = "")
+#if($request.getParameter("reqId") && $request.getParameter("reqId") != "")
+    #set($selectedReqId = $request.getParameter("reqId"))
+#elseif($pageParameters && $pageParameters.get("reqId"))
+    #set($selectedReqId = $pageParameters.get("reqId").value)
+#end
+
+<style>
+.polarion-trace-viewer {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #1e293b;
+    max-width: 1200px;
+    margin: 10px 0;
+}
+.tv-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+.tv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.tv-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tv-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+.tv-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #475569;
+}
+.tv-input-row {
+    display: flex;
+    gap: 10px;
+}
+.tv-input-text {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+}
+.tv-input-text:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+.tv-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+.tv-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+.tv-btn-primary:hover {
+    background: #1d4ed8;
+}
+.tv-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.tv-metric-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px 16px;
+}
+.tv-metric-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 700;
+}
+.tv-metric-val {
+    font-size: 22px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 4px 0;
+}
+.tv-metric-sub {
+    font-size: 11px;
+    color: #64748b;
+}
+
+/* Trace Tree Styling */
+.tv-tree {
+    margin-top: 15px;
+}
+.tv-tree-node {
+    margin-left: 20px;
+    border-left: 2px dashed #cbd5e1;
+    padding-left: 15px;
+    margin-top: 10px;
+}
+.tv-tree-node.root-node {
+    margin-left: 0;
+    border-left: none;
+    padding-left: 0;
+    margin-top: 0;
+}
+.tv-node-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px 14px;
+}
+.tv-node-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.tv-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.tv-badge-req { background: #dbeafe; color: #1e40af; }
+.tv-badge-sys { background: #fef3c7; color: #92400e; }
+.tv-badge-test { background: #dcfce7; color: #166534; }
+.tv-badge-bug { background: #fee2e2; color: #991b1b; }
+.tv-badge-task { background: #f3e8ff; color: #6b21a8; }
+.tv-rel {
+    font-size: 11px;
+    color: #0284c7;
+    font-style: italic;
+    background: #e0f2fe;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.tv-item-id {
+    font-family: monospace;
+    font-weight: 700;
+}
+.tv-item-title {
+    font-weight: 600;
+}
+
+/* Table Styling */
+.tv-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 13px;
+}
+.tv-table th, .tv-table td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    text-align: left;
+}
+.tv-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+}
+</style>
+
+<div class="polarion-trace-viewer">
+    <!-- Header & Form -->
+    <div class="tv-card">
+        <div class="tv-header">
+            <div class="tv-title">
+                <span>🔗</span> Polarion Functional Requirement Trace Viewer
+            </div>
+            <span style="font-size:12px; color:#64748b;">Polarion Open Java API Engine</span>
+        </div>
+
+        <form id="tvTraceForm" method="GET" action="">
+            <div class="tv-form-group">
+                <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID or Key:</label>
+                <div class="tv-input-row">
+                    <input type="text" id="tvReqInput" name="reqId" class="tv-input-text"
+                           value="$!selectedReqId"
+                           placeholder="e.g. REQ-101 or FUNC-204" />
+                    <button type="submit" class="tv-btn tv-btn-primary">⚡ Apply / Run Trace</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    ## Process Trace if Requirement ID provided
+    #if($selectedReqId && $selectedReqId != "")
+        #set($projectId = "")
+        #if($page && $page.project)
+            #set($projectId = $page.project.id)
+        #elseif($project && $project.id)
+            #set($projectId = $project.id)
+        #end
+
+        ## Search work item using Polarion Tracker Service with clean Velocity string concatenation
+        #set($query = "id:" + $selectedReqId)
+        #if($projectId && $projectId != "")
+            #set($query = "project.id:" + $projectId + " AND id:" + $selectedReqId)
+        #end
+
+        #set($workItems = $trackerService.queryWorkItems($query, "id"))
+
+        #if($workItems.isEmpty())
+            <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
+                <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
+                No requirement found matching ID <code>$selectedReqId</code>#if($projectId && $projectId != "") in project <code>$projectId</code>#end.
+            </div>
+        #else
+            #set($rootItem = $workItems.get(0))
+
+            ## Initialize collections for metrics tracking
+            #set($sysReqs = [])
+            #set($testCases = [])
+            #set($defects = [])
+            #set($tasks = [])
+
+            ## Traversal helper logic
+            #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
+            #foreach($link in $directLinks)
+                #set($target = false)
+                #set($target = $link.linkedItem)
+                #if($target)
+                    #set($targetType = false)
+                    #set($targetType = $target.type.id)
+
+                    #if($targetType && ($targetType.equals("systemRequirement") || $targetType.contains("system")))
+                        #set($dummy = $sysReqs.add($target))
+                    #elseif($targetType && ($targetType.equals("testcase") || $targetType.contains("test")))
+                        #set($dummy = $testCases.add($target))
+                    #elseif($targetType && ($targetType.equals("defect") || $targetType.equals("bug") || $targetType.contains("defect")))
+                        #set($dummy = $defects.add($target))
+                    #else
+                        #set($dummy = $tasks.add($target))
+                    #end
+
+                    ## Traverse 2nd level links from target
+                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                        #set($subTarget = false)
+                        #set($subTarget = $subLink.linkedItem)
+                        #if($subTarget)
+                            #set($subType = false)
+                            #set($subType = $subTarget.type.id)
+                            #if($subType && ($subType.equals("testcase") || $subType.contains("test")))
+                                #if(!$testCases.contains($subTarget))
+                                    #set($dummy = $testCases.add($subTarget))
+                                #end
+                            #elseif($subType && ($subType.equals("defect") || $subType.equals("bug") || $subType.contains("defect")))
+                                #if(!$defects.contains($subTarget))
+                                    #set($dummy = $defects.add($subTarget))
+                                #end
+                            #end
+                        #end
+                    #end
+                #end
+            #end
+
+            <!-- Metrics Dashboard -->
+            <div class="tv-metrics-grid">
+                <div class="tv-metric-box">
+                    <div class="tv-metric-title">Root Requirement</div>
+                    <div class="tv-metric-val">$!rootItem.id</div>
+                    <div class="tv-metric-sub">$!rootItem.type.name | $!rootItem.status.name</div>
+                </div>
+                <div class="tv-metric-box">
+                    <div class="tv-metric-title">System Requirements</div>
+                    <div class="tv-metric-val">$sysReqs.size()</div>
+                    <div class="tv-metric-sub">Linked Downstream</div>
+                </div>
+                <div class="tv-metric-box">
+                    <div class="tv-metric-title">Test Cases</div>
+                    <div class="tv-metric-val">$testCases.size()</div>
+                    <div class="tv-metric-sub">Verification Coverage</div>
+                </div>
+                <div class="tv-metric-box">
+                    <div class="tv-metric-title">Defects / Bugs</div>
+                    <div class="tv-metric-val">$defects.size()</div>
+                    <div class="tv-metric-sub">Open Issues</div>
+                </div>
+            </div>
+
+            <!-- Trace Tree View Card -->
+            <div class="tv-card">
+                <div class="tv-header">
+                    <div class="tv-title">🌳 Traceability Hierarchy Tree</div>
+                </div>
+
+                <div class="tv-tree">
+                    <!-- Root Node -->
+                    <div class="tv-tree-node root-node">
+                        <div class="tv-node-card" style="border-left: 4px solid #2563eb;">
+                            <div class="tv-node-header">
+                                <span class="tv-badge tv-badge-req">$!rootItem.type.name</span>
+                                <span class="tv-item-id">$!rootItem.id</span>
+                                <span class="tv-item-title">$!rootItem.title</span>
+                                <span class="tv-badge" style="background:#e2e8f0;">Status: $!rootItem.status.name</span>
+                            </div>
+                            <div style="font-size:12px; color:#64748b; margin-top:4px;">
+                                Author: $!rootItem.author.name | Updated: $!rootItem.updated
+                            </div>
+                        </div>
+
+                        <!-- Level 1 Linked Items -->
+                        #foreach($link in $rootItem.linkedWorkItemsStructsDirect)
+                            #set($target = false)
+                            #set($target = $link.linkedItem)
+                            #if($target)
+                                #set($role = false)
+                                #set($role = $link.linkRole.name)
+                                #set($targetType = false)
+                                #set($targetType = $target.type.id)
+                                #set($targetTypeName = false)
+                                #set($targetTypeName = $target.type.name)
+                                #set($targetStatusName = false)
+                                #set($targetStatusName = $target.status.name)
+
+                                <div class="tv-tree-node">
+                                    <div class="tv-node-card">
+                                        <div class="tv-node-header">
+                                            <span class="tv-rel">⬅ $!role</span>
+                                            <span class="tv-badge #if($targetType && $targetType.contains('test'))tv-badge-test#elseif($targetType && $targetType.contains('sys'))tv-badge-sys#elseif($targetType && ($targetType.contains('bug') || $targetType.contains('defect')))tv-badge-bug#else tv-badge-task#end">
+                                                $!targetTypeName
+                                            </span>
+                                            <span class="tv-item-id">$!target.id</span>
+                                            <span class="tv-item-title">$!target.title</span>
+                                            <span class="tv-badge" style="background:#e2e8f0;">$!targetStatusName</span>
+                                        </div>
+
+                                        <!-- Level 2 Sub-linked Items -->
+                                        #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                                            #set($subTarget = false)
+                                            #set($subTarget = $subLink.linkedItem)
+                                            #if($subTarget)
+                                                #set($subRole = false)
+                                                #set($subRole = $subLink.linkRole.name)
+                                                #set($subType = false)
+                                                #set($subType = $subTarget.type.id)
+                                                #set($subTypeName = false)
+                                                #set($subTypeName = $subTarget.type.name)
+                                                #set($subStatusName = false)
+                                                #set($subStatusName = $subTarget.status.name)
+
+                                                <div class="tv-tree-node">
+                                                    <div class="tv-node-card" style="background:#f8fafc;">
+                                                        <div class="tv-node-header">
+                                                            <span class="tv-rel">⬅ $!subRole</span>
+                                                            <span class="tv-badge #if($subType && $subType.contains('test'))tv-badge-test#elseif($subType && ($subType.contains('bug') || $subType.contains('defect')))tv-badge-bug#else tv-badge-task#end">
+                                                                $!subTypeName
+                                                            </span>
+                                                            <span class="tv-item-id">$!subTarget.id</span>
+                                                            <span class="tv-item-title">$!subTarget.title</span>
+                                                            <span class="tv-badge" style="background:#e2e8f0;">$!subStatusName</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            #end
+                                        #end
+                                    </div>
+                                </div>
+                            #end
+                        #end
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trace Matrix Table Card -->
+            <div class="tv-card">
+                <div class="tv-header">
+                    <div class="tv-title">📋 Traceability Matrix Table</div>
+                </div>
+
+                <table class="tv-table">
+                    <thead>
+                        <tr>
+                            <th>Level</th>
+                            <th>Work Item ID</th>
+                            <th>Type</th>
+                            <th>Relationship</th>
+                            <th>Title</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Root (L0)</strong></td>
+                            <td><span class="tv-item-id">$!rootItem.id</span></td>
+                            <td>$!rootItem.type.name</td>
+                            <td><span class="tv-rel">Primary Requirement</span></td>
+                            <td>$!rootItem.title</td>
+                            <td>$!rootItem.status.name</td>
+                        </tr>
+                        #foreach($link in $rootItem.linkedWorkItemsStructsDirect)
+                            #set($target = false)
+                            #set($target = $link.linkedItem)
+                            #if($target)
+                                #set($role = false)
+                                #set($role = $link.linkRole.name)
+                                <tr>
+                                    <td>L1</td>
+                                    <td><span class="tv-item-id">$!target.id</span></td>
+                                    <td>$!target.type.name</td>
+                                    <td><span class="tv-rel">$!role</span></td>
+                                    <td>$!target.title</td>
+                                    <td>$!target.status.name</td>
+                                </tr>
+                                #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                                    #set($subTarget = false)
+                                    #set($subTarget = $subLink.linkedItem)
+                                    #if($subTarget)
+                                        #set($subRole = false)
+                                        #set($subRole = $subLink.linkRole.name)
+                                        <tr>
+                                            <td>L2</td>
+                                            <td><span class="tv-item-id">$!subTarget.id</span></td>
+                                            <td>$!subTarget.type.name</td>
+                                            <td><span class="tv-rel">$!subRole</span></td>
+                                            <td>$!subTarget.title</td>
+                                            <td>$!subTarget.status.name</td>
+                                        </tr>
+                                    #end
+                                #end
+                            #end
+                        #end
+                    </tbody>
+                </table>
+            </div>
+        #end
+    #end
+</div>
