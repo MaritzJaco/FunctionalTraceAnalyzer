@@ -24,7 +24,11 @@ def test_velocity_template():
     print(f"Template Directives Stats: #if={if_count}, #foreach={foreach_count}, #end={end_count}")
     assert if_count + foreach_count == end_count, f"Directive mismatch: (#if + #foreach = {if_count + foreach_count}) != (#end = {end_count})"
 
-    # 4. Check Polarion Java Open API references & simplified structure
+    # 4. Check query construction syntax (ensuring double-quote string interpolation rather than invalid + concatenation)
+    assert 'id:${q}${selectedReqId}${q}' in content, "Missing double-quote string interpolation for query"
+    assert '#set($query = "' in content, "Query must be set using double-quote string interpolation"
+
+    # 5. Check Polarion Java Open API references & simplified structure
     assert '$trackerService.queryWorkItems' in content, "Missing Polarion trackerService query"
     assert 'linkedWorkItemsStructsDirect' in content, "Missing linked work items traversal"
     assert '$link.linkedItem' in content, "Missing Polarion ILinkedWorkItemStruct.linkedItem property reference"

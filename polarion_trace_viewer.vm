@@ -230,11 +230,11 @@ function tvApplyTrace(e) {
 
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        ## Search work item using Polarion Tracker Service
+        ## Search work item using Polarion Tracker Service via double-quoted Velocity string interpolation
         #set($q = '"')
-        #set($query = "id:" + $q + $selectedReqId + $q + " OR id:*" + $selectedReqId)
+        #set($query = "id:${q}${selectedReqId}${q} OR id:*${selectedReqId}")
         #if($currentProjId && $currentProjId != "Global / Unassigned")
-            #set($query = "project.id:" + $q + $currentProjId + $q + " AND (id:" + $q + $selectedReqId + $q + " OR id:*" + $selectedReqId + ")")
+            #set($query = "project.id:${q}${currentProjId}${q} AND (id:${q}${selectedReqId}${q} OR id:*${selectedReqId})")
         #end
 
         #set($workItems = $trackerService.queryWorkItems($query, "id"))
