@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polarion Functional Trace Viewer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Config Header -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="logo-icon">🔗</div>
+                <div>
+                    <h1>Polarion Functional Trace Viewer</h1>
+                    <p class="subtitle">Requirement Traceability & Analysis Engine</p>
+                </div>
+            </div>
+
+            <button id="toggle-config-btn" class="btn btn-secondary btn-sm">
+                ⚙️ Server Settings
+            </button>
+        </header>
+
+        <!-- Config Modal / Panel -->
+        <div id="config-panel" class="config-panel hidden">
+            <div class="config-content">
+                <h3>Polarion Server Settings</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="server-url">Server URL</label>
+                        <input type="text" id="server-url" value="https://polarion.example.com" placeholder="https://polarion.company.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="project-id">Project ID</label>
+                        <input type="text" id="project-id" value="DRIVE_SYS" placeholder="DRIVE_SYS">
+                    </div>
+                    <div class="form-group">
+                        <label for="auth-token">Personal Access Token (PAT)</label>
+                        <input type="password" id="auth-token" placeholder="Bearer Token (Optional for mock)">
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="use-mock" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Use Mock / Offline Processing Mode</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <main class="main-content">
+            <!-- Query Section -->
+            <section class="card input-card">
+                <div class="card-header">
+                    <h2>Functional Requirement Input</h2>
+                    <span class="badge badge-info">Step 1</span>
+                </div>
+
+                <div class="input-form">
+                    <div class="form-group">
+                        <label for="req-input">Provide Functional Requirement ID or Specification Text:</label>
+                        <textarea id="req-input" rows="3" placeholder="e.g. FUNC-101: Emergency Braking Control Algorithm or 'The system shall activate automatic braking within 50ms when obstacle distance is under threshold.'"></textarea>
+                    </div>
+
+                    <div class="quick-samples">
+                        <span class="sample-label">Quick Samples:</span>
+                        <button class="chip-btn" data-req="FUNC-101: Emergency Braking Control Algorithm with Radar Sensor Fusion">FUNC-101 (Emergency Braking)</button>
+                        <button class="chip-btn" data-req="FUNC-204: Adaptive Cruise Control Speed Maintenance & Gap Tracking">FUNC-204 (Cruise Control)</button>
+                        <button class="chip-btn" data-req="FUNC-309: Battery Management System Thermal Cutoff Protocol">FUNC-309 (BMS Cutoff)</button>
+                    </div>
+
+                    <div class="action-row">
+                        <button id="run-trace-btn" class="btn btn-primary">
+                            <span class="btn-icon">⚡</span> Apply & Run Trace
+                        </button>
+                        <button id="clear-btn" class="btn btn-outline">Clear</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Results Section -->
+            <section id="results-section" class="results-section hidden">
+                <!-- Trace Overview Dashboard -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-title">Requirement ID</div>
+                        <div class="metric-value" id="root-req-id">-</div>
+                        <div class="metric-sub" id="root-req-type">Functional Requirement</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">System Requirements</div>
+                        <div class="metric-value" id="count-sys">0</div>
+                        <div class="metric-sub">Linked Downstream</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Test Cases</div>
+                        <div class="metric-value" id="count-tests">0</div>
+                        <div class="metric-sub" id="test-verdict-summary">0 Passed</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-title">Open Bugs / Defects</div>
+                        <div class="metric-value" id="count-bugs">0</div>
+                        <div class="metric-sub" id="bug-severity-summary">0 Open</div>
+                    </div>
+                </div>
+
+                <!-- Trace View Container -->
+                <div class="card trace-card">
+                    <div class="trace-header">
+                        <div class="view-tabs">
+                            <button class="tab-btn active" data-tab="tree">Hierarchy Tree View</button>
+                            <button class="tab-btn" data-tab="table">Matrix Table View</button>
+                        </div>
+                        <div class="actions">
+                            <button id="export-json-btn" class="btn btn-sm btn-outline">📥 Export JSON</button>
+                        </div>
+                    </div>
+
+                    <!-- Tree View Tab -->
+                    <div id="tree-view-tab" class="tab-content active">
+                        <div id="tree-container" class="tree-container">
+                            <!-- Dynamic Tree Nodes Rendered Here -->
+                        </div>
+                    </div>
+
+                    <!-- Table View Tab -->
+                    <div id="table-view-tab" class="tab-content">
+                        <div class="table-wrapper">
+                            <table class="trace-table">
+                                <thead>
+                                    <tr>
+                                        <th>Level</th>
+                                        <th>Work Item ID</th>
+                                        <th>Type</th>
+                                        <th>Relationship</th>
+                                        <th>Title</th>
+                                        <th>Status / Verdict</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="trace-table-body">
+                                    <!-- Dynamic Table Rows Rendered Here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="loading-overlay hidden">
+                <div class="spinner"></div>
+                <p>Connecting to Polarion Server & Processing Functional Trace...</p>
+            </div>
+
+            <!-- Error Notification -->
+            <div id="error-box" class="alert alert-danger hidden">
+                <span class="error-msg" id="error-message"></span>
+            </div>
+        </main>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
