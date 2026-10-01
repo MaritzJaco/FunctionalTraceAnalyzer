@@ -191,19 +191,6 @@ function tvApplyTrace(e) {
 }
 </script>
 
-#set($currentProjId = "")
-#if($page && $page.project && $page.project.id)
-    #set($currentProjId = $page.project.id)
-#elseif($project && $project.id)
-    #set($currentProjId = $project.id)
-#elseif($trackerService && $trackerService.trackerProject && $trackerService.trackerProject.id)
-    #set($currentProjId = $trackerService.trackerProject.id)
-#end
-
-#if(!$currentProjId || $currentProjId == "")
-    #set($currentProjId = "Global / Unassigned")
-#end
-
 <div class="polarion-trace-viewer">
     <!-- Header & Input Form -->
     <div class="tv-card">
@@ -231,16 +218,12 @@ function tvApplyTrace(e) {
     #if($selectedReqId && $selectedReqId != "")
         ## Search work item using Polarion Tracker Service via double-quoted Velocity string interpolation
         #set($query = "id:${selectedReqId}")
-        #if($currentProjId && $currentProjId != "Global / Unassigned")
-            #set($query = "project.id:${currentProjId} AND id:${selectedReqId}")
-        #end
-
         #set($workItems = $trackerService.queryWorkItems($query, "id"))
 
         #if($workItems.isEmpty())
             <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
                 <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
-                No requirement found matching ID <code>$selectedReqId</code>#if($currentProjId && $currentProjId != "Global / Unassigned") in project <code>$currentProjId</code>#end.
+                No requirement found matching ID <code>$selectedReqId</code>
             </div>
         #else
             #set($rootItem = $workItems.get(0))
@@ -252,7 +235,7 @@ function tvApplyTrace(e) {
                         Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
                     </div>
                     <div class="tv-req-meta">
-                        Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong> | Project: <strong>$!currentProjId</strong>
+                        Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
                     </div>
                 </div>
 
