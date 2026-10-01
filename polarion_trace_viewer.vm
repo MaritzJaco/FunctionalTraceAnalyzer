@@ -212,9 +212,6 @@ function tvApplyTrace(e) {
                 <span>🔗</span> Polarion Functional Trace Viewer
                 <span class="tv-version-badge">$scriptVersion</span>
             </div>
-            <div>
-                <span class="tv-badge tv-badge-proj">Project: $!currentProjId</span>
-            </div>
         </div>
 
         <form id="tvTraceForm" method="GET" onsubmit="return tvApplyTrace(event);">
