@@ -1,0 +1,410 @@
+## Polarion ALM Functional Trace Viewer (Apache Velocity Script)
+## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
+
+## Version Definition
+#set($scriptVersion = "v1.0.4")
+
+## Parameter Priority & Safe Extraction (Safely handling cases where $request is null in Polarion Rich Pages)
+#set($selectedReqId = "")
+
+## 1. Check $request query parameters if $request exists
+#if($request)
+    #if($request.getParameter("WorkItems") && $request.getParameter("WorkItems").trim() != "")
+        #set($selectedReqId = $request.getParameter("WorkItems").trim())
+    #elseif($request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
+        #set($selectedReqId = $request.getParameter("reqId").trim())
+    #end
+#end
+
+## 2. Fallback to $pageParameters if $selectedReqId is still empty
+#if((!$selectedReqId || $selectedReqId == "") && $pageParameters)
+    #if($pageParameters.get("WorkItems") && $pageParameters.get("WorkItems").value && $pageParameters.get("WorkItems").value.trim() != "")
+        #set($selectedReqId = $pageParameters.get("WorkItems").value.trim())
+    #elseif($pageParameters.get("reqId") && $pageParameters.get("reqId").value && $pageParameters.get("reqId").value.trim() != "")
+        #set($selectedReqId = $pageParameters.get("reqId").value.trim())
+    #end
+#end
+
+#set($paramTitle = "")
+#if($request && $request.getParameter("Title") && $request.getParameter("Title").trim() != "")
+    #set($paramTitle = $request.getParameter("Title").trim())
+#elseif($pageParameters && $pageParameters.get("Title") && $pageParameters.get("Title").value)
+    #set($paramTitle = $pageParameters.get("Title").value.trim())
+#end
+
+#set($paramDepth = "6")
+#if($request && $request.getParameter("Depth") && $request.getParameter("Depth").trim() != "")
+    #set($paramDepth = $request.getParameter("Depth").trim())
+#elseif($pageParameters && $pageParameters.get("Depth") && $pageParameters.get("Depth").value)
+    #set($paramDepth = $pageParameters.get("Depth").value.trim())
+#end
+
+<style>
+.polarion-trace-viewer {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #1e293b;
+    max-width: 1000px;
+    margin: 10px 0;
+}
+.tv-card {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+.tv-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.tv-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.tv-version-badge {
+    background: #2563eb;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: 6px;
+}
+.tv-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+.tv-label {
+    font-weight: 600;
+    font-size: 13px;
+    color: #475569;
+}
+.tv-input-row {
+    display: flex;
+    gap: 10px;
+}
+.tv-input-text {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #94a3b8;
+    border-radius: 6px;
+    font-size: 14px;
+    outline: none;
+}
+.tv-input-text:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+.tv-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+.tv-btn-primary {
+    background: #2563eb;
+    color: #ffffff;
+}
+.tv-btn-primary:hover {
+    background: #1d4ed8;
+}
+.tv-badge {
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+}
+.tv-item-id {
+    font-family: monospace;
+    font-weight: 700;
+}
+.tv-item-title {
+    font-weight: 600;
+}
+.tv-req-banner {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    padding: 12px 16px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+}
+.tv-req-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+}
+.tv-req-meta {
+    font-size: 13px;
+    color: #64748b;
+    margin-top: 4px;
+}
+.tv-url-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    word-break: break-all;
+    margin-bottom: 15px;
+    font-family: monospace;
+    color: #1e40af;
+}
+.tv-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 13px;
+}
+.tv-table th, .tv-table td {
+    border: 1px solid #cbd5e1;
+    padding: 8px 12px;
+    text-align: left;
+}
+.tv-table th {
+    background: #f1f5f9;
+    font-weight: 600;
+}
+.tv-rel {
+    font-size: 11px;
+    color: #0284c7;
+    font-style: italic;
+    background: #e0f2fe;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+</style>
+
+<script type="text/javascript">
+function tvApplyTrace(e) {
+    if (e && e.preventDefault) { e.preventDefault(); }
+
+    var inputWorkItems = document.getElementById('tvReqInput');
+    var inputTitle = document.getElementById('tvTitleInput');
+    var inputDepth = document.getElementById('tvDepthInput');
+
+    if (!inputWorkItems) return false;
+    var valWorkItems = inputWorkItems.value.trim();
+    if (!valWorkItems) return false;
+
+    var valTitle = inputTitle ? inputTitle.value.trim() : "";
+    var valDepth = inputDepth && inputDepth.value.trim() ? inputDepth.value.trim() : "6";
+
+    // Get current window or top location
+    var targetWin = window;
+    try {
+        if (window.top && window.top.location && window.top.location.href) {
+            targetWin = window.top;
+        }
+    } catch(err) {}
+
+    var href = targetWin.location.href;
+
+    // Clean any existing query params before '#' to prevent 'polarion/?WorkItems=...#/' format
+    if (href.indexOf('?') !== -1 && href.indexOf('#') !== -1 && href.indexOf('?') < href.indexOf('#')) {
+        var preHash = href.substring(0, href.indexOf('?'));
+        var hashPart = href.substring(href.indexOf('#'));
+        href = preHash + hashPart;
+    }
+
+    // Extract base URL before query parameters in hash part
+    var baseHashRoute = href;
+    if (baseHashRoute.indexOf('?') !== -1) {
+        baseHashRoute = baseHashRoute.substring(0, baseHashRoute.indexOf('?'));
+    }
+
+    // Always construct complete query string with Title, WorkItems, and Depth
+    var queryParams = "Title=" + encodeURIComponent(valTitle) +
+                      "&WorkItems=" + encodeURIComponent(valWorkItems) +
+                      "&Depth=" + encodeURIComponent(valDepth);
+
+    href = baseHashRoute + "?" + queryParams;
+
+    targetWin.location.href = href;
+    return false;
+}
+
+function tvCopyUrl() {
+    var el = document.getElementById('tvGeneratedUrlText');
+    if (el) {
+        navigator.clipboard.writeText(el.innerText || el.textContent);
+        alert('Generated Trace URL copied to clipboard!');
+    }
+}
+</script>
+
+<div class="polarion-trace-viewer">
+    <!-- Header & Input Form -->
+    <div class="tv-card">
+        <div class="tv-header">
+            <div class="tv-title">
+                <span>🔗</span> Polarion Functional Trace Viewer
+                <span class="tv-version-badge">$scriptVersion</span>
+            </div>
+        </div>
+
+        <form id="tvTraceForm" method="GET" onsubmit="return tvApplyTrace(event);">
+            <input type="hidden" id="tvTitleInput" name="Title" value="$!paramTitle" />
+            <input type="hidden" id="tvDepthInput" name="Depth" value="$!paramDepth" />
+            <div class="tv-form-group">
+                <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID(s):</label>
+                <div class="tv-input-row">
+                    <input type="text" id="tvReqInput" name="WorkItems" class="tv-input-text"
+                           value="$!selectedReqId"
+                           placeholder="e.g. 0030-12551, 0030-176, or comma-separated IDs" />
+                    <button type="submit" class="tv-btn tv-btn-primary">Apply</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    ## Process Trace if Requirement ID provided
+    #if($selectedReqId && $selectedReqId != "")
+        ## Extract primary ID if comma-separated list was provided
+        #set($firstReqId = $selectedReqId)
+        #if($selectedReqId.contains(","))
+            #set($idParts = $selectedReqId.split(","))
+            #set($firstReqId = $idParts.get(0).trim())
+        #end
+
+        ## Search root work item using Polarion Tracker Service
+        #set($query = "id:${firstReqId}")
+        #set($workItems = $trackerService.queryWorkItems($query, "id"))
+
+        #if($workItems.isEmpty())
+            <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
+                <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
+                No requirement found matching ID <code>$firstReqId</code>
+            </div>
+        #else
+            #set($rootItem = $workItems.get(0))
+
+            ## Collect linked item IDs for URL construction
+            #set($linkedIdsList = [$rootItem.id])
+            #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
+            #foreach($link in $directLinks)
+                #set($target = false)
+                #set($target = $link.linkedItem)
+                #if($target)
+                    #if(!$linkedIdsList.contains($target.id))
+                        #set($dummy = $linkedIdsList.add($target.id))
+                    #end
+                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                        #set($subTarget = false)
+                        #set($subTarget = $subLink.linkedItem)
+                        #if($subTarget)
+                            #if(!$linkedIdsList.contains($subTarget.id))
+                                #set($dummy = $linkedIdsList.add($subTarget.id))
+                            #end
+                        #end
+                    #end
+                #end
+            #end
+
+            ## Join linked IDs with '%2C%20' for exact URL format
+            #set($workItemsUrlParam = "")
+            #foreach($itemId in $linkedIdsList)
+                #if($velocityCount == 1)
+                    #set($workItemsUrlParam = $itemId)
+                #else
+                    #set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${itemId}")
+                #end
+            #end
+
+            ## Determine Title for URL
+            #set($titleUrlParam = $rootItem.title)
+            #if($paramTitle && $paramTitle != "")
+                #set($titleUrlParam = $paramTitle)
+            #end
+
+            ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
+            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
+
+            <div class="tv-card">
+                <!-- Requirement Title Banner -->
+                <div class="tv-req-banner">
+                    <div class="tv-req-title">
+                        Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
+                    </div>
+                    <div class="tv-req-meta">
+                        Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
+                    </div>
+                </div>
+
+                <!-- Generated URL Box -->
+                <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+                    <span>🔗 Generated Functional Traceability Analyzer URL:</span>
+                    <button type="button" class="tv-btn tv-btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="tvCopyUrl();">📋 Copy URL</button>
+                </div>
+                <div class="tv-url-box" id="tvGeneratedUrlText">$generatedTraceUrl</div>
+
+                <!-- Linked Items -->
+                <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
+                    Linked Items / Traceability Results
+                </div>
+
+                #if($directLinks.isEmpty())
+                    <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
+                #else
+                    <table class="tv-table">
+                        <thead>
+                            <tr>
+                                <th>Linked Work Item ID</th>
+                                <th>Relationship</th>
+                                <th>Type</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            #foreach($link in $directLinks)
+                                #set($target = false)
+                                #set($target = $link.linkedItem)
+                                #if($target)
+                                    #set($role = false)
+                                    #set($role = $link.linkRole.name)
+                                    <tr>
+                                        <td><span class="tv-item-id">$!target.id</span></td>
+                                        <td><span class="tv-rel">$!role</span></td>
+                                        <td>$!target.type.name</td>
+                                        <td>$!target.title</td>
+                                        <td>$!target.status.name</td>
+                                    </tr>
+                                    ## Check sub-links (level 2)
+                                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                                        #set($subTarget = false)
+                                        #set($subTarget = $subLink.linkedItem)
+                                        #if($subTarget)
+                                            #set($subRole = false)
+                                            #set($subRole = $subLink.linkRole.name)
+                                            <tr style="background:#f8fafc;">
+                                                <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
+                                                <td><span class="tv-rel">$!subRole</span></td>
+                                                <td>$!subTarget.type.name</td>
+                                                <td>$!subTarget.title</td>
+                                                <td>$!subTarget.status.name</td>
+                                            </tr>
+                                        #end
+                                    #end
+                                #end
+                            #end
+                        </tbody>
+                    </table>
+                #end
+            </div>
+        #end
+    #end
+</div>
