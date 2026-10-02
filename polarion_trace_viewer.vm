@@ -2,7 +2,7 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.3")
+#set($scriptVersion = "v1.0.4")
 
 ## Parameter Priority & Extraction:
 ## Supports both 'reqId' and 'WorkItems' parameters, as well as 'Title' and 'Depth'
@@ -178,10 +178,16 @@
 function tvApplyTrace(e) {
     if (e && e.preventDefault) { e.preventDefault(); }
 
-    var input = document.getElementById('tvReqInput');
-    if (!input) return false;
-    var val = input.value.trim();
-    if (!val) return false;
+    var inputWorkItems = document.getElementById('tvReqInput');
+    var inputTitle = document.getElementById('tvTitleInput');
+    var inputDepth = document.getElementById('tvDepthInput');
+
+    if (!inputWorkItems) return false;
+    var valWorkItems = inputWorkItems.value.trim();
+    if (!valWorkItems) return false;
+
+    var valTitle = inputTitle ? inputTitle.value.trim() : "";
+    var valDepth = inputDepth && inputDepth.value.trim() ? inputDepth.value.trim() : "6";
 
     // Get current window or top location
     var targetWin = window;
@@ -200,15 +206,18 @@ function tvApplyTrace(e) {
         href = preHash + hashPart;
     }
 
-    // Now update or append WorkItems parameter AFTER the hash route
-    if (href.indexOf('WorkItems=') !== -1) {
-        href = href.replace(/([?&])WorkItems=[^&]*/, '$1WorkItems=' + encodeURIComponent(val));
-    } else if (href.indexOf('reqId=') !== -1) {
-        href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
-    } else {
-        var sep = href.indexOf('?') !== -1 ? '&' : '?';
-        href = href + sep + 'WorkItems=' + encodeURIComponent(val);
+    // Extract base URL before query parameters in hash part
+    var baseHashRoute = href;
+    if (baseHashRoute.indexOf('?') !== -1) {
+        baseHashRoute = baseHashRoute.substring(0, baseHashRoute.indexOf('?'));
     }
+
+    // Always construct complete query string with Title, WorkItems, and Depth
+    var queryParams = "Title=" + encodeURIComponent(valTitle) +
+                      "&WorkItems=" + encodeURIComponent(valWorkItems) +
+                      "&Depth=" + encodeURIComponent(valDepth);
+
+    href = baseHashRoute + "?" + queryParams;
 
     targetWin.location.href = href;
     return false;
@@ -234,6 +243,8 @@ function tvCopyUrl() {
         </div>
 
         <form id="tvTraceForm" method="GET" onsubmit="return tvApplyTrace(event);">
+            <input type="hidden" id="tvTitleInput" name="Title" value="$!paramTitle" />
+            <input type="hidden" id="tvDepthInput" name="Depth" value="$!paramDepth" />
             <div class="tv-form-group">
                 <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID(s):</label>
                 <div class="tv-input-row">
@@ -305,7 +316,7 @@ function tvCopyUrl() {
                 #set($titleUrlParam = $paramTitle)
             #end
 
-            ## Construct full URL placed strictly after the hash route
+            ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
             #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
 
             <div class="tv-card">
