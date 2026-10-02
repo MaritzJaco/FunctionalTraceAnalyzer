@@ -2,7 +2,7 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.2")
+#set($scriptVersion = "v1.0.3")
 
 ## Parameter Priority & Extraction:
 ## Supports both 'reqId' and 'WorkItems' parameters, as well as 'Title' and 'Depth'
@@ -176,42 +176,42 @@
 
 <script type="text/javascript">
 function tvApplyTrace(e) {
+    if (e && e.preventDefault) { e.preventDefault(); }
+
     var input = document.getElementById('tvReqInput');
-    if (!input) return true;
+    if (!input) return false;
     var val = input.value.trim();
     if (!val) return false;
 
-    // Check if running inside Polarion iframe or widget block
+    // Get current window or top location
+    var targetWin = window;
     try {
-        var topLoc = window.top.location.href;
-        if (topLoc) {
-            var href = topLoc;
-            // Standardize param as reqId or WorkItems
-            if (href.indexOf('WorkItems=') !== -1) {
-                href = href.replace(/([?&])WorkItems=[^&]*/, '$1WorkItems=' + encodeURIComponent(val));
-            } else if (href.indexOf('reqId=') !== -1) {
-                href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
-            } else {
-                if (href.indexOf('#') !== -1) {
-                    var parts = href.split('#');
-                    var base = parts[0];
-                    var hash = parts.slice(1).join('#');
-                    var sep = base.indexOf('?') !== -1 ? '&' : '?';
-                    href = base + sep + 'WorkItems=' + encodeURIComponent(val) + '#' + hash;
-                } else {
-                    var sep = href.indexOf('?') !== -1 ? '&' : '?';
-                    href = href + sep + 'WorkItems=' + encodeURIComponent(val);
-                }
-            }
-            if (e && e.preventDefault) { e.preventDefault(); }
-            window.top.location.href = href;
-            return false;
+        if (window.top && window.top.location && window.top.location.href) {
+            targetWin = window.top;
         }
-    } catch(err) {
-        // Fall back to GET form submission
+    } catch(err) {}
+
+    var href = targetWin.location.href;
+
+    // Clean any existing query params before '#' to prevent 'polarion/?WorkItems=...#/' format
+    if (href.indexOf('?') !== -1 && href.indexOf('#') !== -1 && href.indexOf('?') < href.indexOf('#')) {
+        var preHash = href.substring(0, href.indexOf('?'));
+        var hashPart = href.substring(href.indexOf('#'));
+        href = preHash + hashPart;
     }
 
-    return true;
+    // Now update or append WorkItems parameter AFTER the hash route
+    if (href.indexOf('WorkItems=') !== -1) {
+        href = href.replace(/([?&])WorkItems=[^&]*/, '$1WorkItems=' + encodeURIComponent(val));
+    } else if (href.indexOf('reqId=') !== -1) {
+        href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
+    } else {
+        var sep = href.indexOf('?') !== -1 ? '&' : '?';
+        href = href + sep + 'WorkItems=' + encodeURIComponent(val);
+    }
+
+    targetWin.location.href = href;
+    return false;
 }
 
 function tvCopyUrl() {
@@ -305,8 +305,8 @@ function tvCopyUrl() {
                 #set($titleUrlParam = $paramTitle)
             #end
 
-            ## Construct full URL
-            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
+            ## Construct full URL placed strictly after the hash route
+            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
 
             <div class="tv-card">
                 <!-- Requirement Title Banner -->

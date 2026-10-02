@@ -9,7 +9,7 @@ def test_velocity_template():
         content = f.read()
 
     # 1. Check version badge
-    assert 'v1.0.2' in content, "Missing v1.0.2 version badge"
+    assert 'v1.0.3' in content, "Missing v1.0.3 version badge"
 
     # 2. Check HTML input box and submit button
     assert '<input type="text" id="tvReqInput" name="WorkItems"' in content, "Missing requirement text input box with WorkItems parameter"
@@ -26,8 +26,8 @@ def test_velocity_template():
     print(f"Template Directives Stats: #if={if_count}, #foreach={foreach_count}, #end={end_count}")
     assert if_count + foreach_count == end_count, f"Directive mismatch: (#if + #foreach = {if_count + foreach_count}) != (#end = {end_count})"
 
-    # 4. Check URL construction parameters
-    assert 'Functional%20Traceability%20Analyzer?Title=' in content, "Missing URL construction base"
+    # 4. Check URL construction parameters & format
+    assert '#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=' in content, "Missing URL construction base"
     assert '&WorkItems=' in content, "Missing WorkItems URL parameter construct"
     assert '&Depth=' in content, "Missing Depth URL parameter construct"
 
