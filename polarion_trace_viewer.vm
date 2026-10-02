@@ -2,42 +2,12 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.4")
+#set($scriptVersion = "v1.0.5")
 
-## Parameter Priority & Safe Extraction (Safely handling cases where $request is null in Polarion Rich Pages)
+## Parameter Extraction Variables
 #set($selectedReqId = "")
-
-## 1. Check $request query parameters if $request exists
-#if($request)
-    #if($request.getParameter("WorkItems") && $request.getParameter("WorkItems").trim() != "")
-        #set($selectedReqId = $request.getParameter("WorkItems").trim())
-    #elseif($request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
-        #set($selectedReqId = $request.getParameter("reqId").trim())
-    #end
-#end
-
-## 2. Fallback to $pageParameters if $selectedReqId is still empty
-#if((!$selectedReqId || $selectedReqId == "") && $pageParameters)
-    #if($pageParameters.get("WorkItems") && $pageParameters.get("WorkItems").value && $pageParameters.get("WorkItems").value.trim() != "")
-        #set($selectedReqId = $pageParameters.get("WorkItems").value.trim())
-    #elseif($pageParameters.get("reqId") && $pageParameters.get("reqId").value && $pageParameters.get("reqId").value.trim() != "")
-        #set($selectedReqId = $pageParameters.get("reqId").value.trim())
-    #end
-#end
-
 #set($paramTitle = "")
-#if($request && $request.getParameter("Title") && $request.getParameter("Title").trim() != "")
-    #set($paramTitle = $request.getParameter("Title").trim())
-#elseif($pageParameters && $pageParameters.get("Title") && $pageParameters.get("Title").value)
-    #set($paramTitle = $pageParameters.get("Title").value.trim())
-#end
-
 #set($paramDepth = "6")
-#if($request && $request.getParameter("Depth") && $request.getParameter("Depth").trim() != "")
-    #set($paramDepth = $request.getParameter("Depth").trim())
-#elseif($pageParameters && $pageParameters.get("Depth") && $pageParameters.get("Depth").value)
-    #set($paramDepth = $pageParameters.get("Depth").value.trim())
-#end
 
 <style>
 .polarion-trace-viewer {
@@ -189,6 +159,33 @@
 </style>
 
 <script type="text/javascript">
+// Extract URL parameters client-side from window location hash or search
+(function initTvParams() {
+    try {
+        var href = window.top ? window.top.location.href : window.location.href;
+        var queryStr = "";
+        if (href.indexOf('?') !== -1) {
+            queryStr = href.substring(href.indexOf('?') + 1);
+            if (queryStr.indexOf('#') !== -1) {
+                queryStr = queryStr.substring(0, queryStr.indexOf('#'));
+            }
+        }
+        var searchParams = new URLSearchParams(queryStr);
+        var workItems = searchParams.get("WorkItems") || searchParams.get("reqId") || "";
+        var title = searchParams.get("Title") || "";
+        var depth = searchParams.get("Depth") || "6";
+
+        window.addEventListener('DOMContentLoaded', function() {
+            var inputWi = document.getElementById('tvReqInput');
+            var inputTi = document.getElementById('tvTitleInput');
+            var inputDe = document.getElementById('tvDepthInput');
+            if (inputWi && workItems && !inputWi.value) { inputWi.value = workItems; }
+            if (inputTi && title) { inputTi.value = title; }
+            if (inputDe && depth) { inputDe.value = depth; }
+        });
+    } catch(err) {}
+})();
+
 function tvApplyTrace(e) {
     if (e && e.preventDefault) { e.preventDefault(); }
 
