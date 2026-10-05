@@ -114,7 +114,6 @@
     font-size: 11px;
     font-weight: 700;
 }
-.tv-badge-proj { background: #e0e7ff; color: #3730a3; }
 .tv-item-id {
     font-family: monospace;
     font-weight: 700;
@@ -274,6 +273,7 @@ function tvCopyUrl() {
         #if($workItems.isEmpty())
             <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
                 <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
+                No requirement found matching ID <code>$firstReqId</code>
             </div>
         #else
             #set($rootItem = $workItems.get(0))
@@ -342,7 +342,6 @@ function tvCopyUrl() {
                     Linked Items / Traceability Results
                 </div>
 
-                #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
                 #if($directLinks.isEmpty())
                     <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
                 #else
