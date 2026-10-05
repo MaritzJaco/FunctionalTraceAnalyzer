@@ -2,16 +2,27 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.2")
+#set($scriptVersion = "v1.0.4")
 
-## Parameter Priority:
-## 1. Direct URL query parameter (reqId) - entered via text box / Apply button
-## 2. Rich Page parameter ($pageParameters.reqId) - set via page settings
+## Parameter Priority & Extraction:
+## Supports both 'reqId' and 'WorkItems' parameters, as well as 'Title' and 'Depth'
 #set($selectedReqId = "")
-#if($request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
+#if($request.getParameter("WorkItems") && $request.getParameter("WorkItems").trim() != "")
+    #set($selectedReqId = $request.getParameter("WorkItems").trim())
+#elseif($request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
     #set($selectedReqId = $request.getParameter("reqId").trim())
 #elseif($pageParameters && $pageParameters.get("reqId") && $pageParameters.get("reqId").value && $pageParameters.get("reqId").value.trim() != "")
     #set($selectedReqId = $pageParameters.get("reqId").value.trim())
+#end
+
+#set($paramTitle = "")
+#if($request.getParameter("Title") && $request.getParameter("Title").trim() != "")
+    #set($paramTitle = $request.getParameter("Title").trim())
+#end
+
+#set($paramDepth = "6")
+#if($request.getParameter("Depth") && $request.getParameter("Depth").trim() != "")
+    #set($paramDepth = $request.getParameter("Depth").trim())
 #end
 
 <style>
@@ -128,6 +139,17 @@
     color: #64748b;
     margin-top: 4px;
 }
+.tv-url-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    word-break: break-all;
+    margin-bottom: 15px;
+    font-family: monospace;
+    color: #1e40af;
+}
 .tv-table {
     width: 100%;
     border-collapse: collapse;
@@ -155,39 +177,59 @@
 
 <script type="text/javascript">
 function tvApplyTrace(e) {
-    var input = document.getElementById('tvReqInput');
-    if (!input) return true;
-    var val = input.value.trim();
-    if (!val) return false;
+    if (e && e.preventDefault) { e.preventDefault(); }
 
-    // Check if running inside Polarion iframe or widget block where standard form action might target frame
+    var inputWorkItems = document.getElementById('tvReqInput');
+    var inputTitle = document.getElementById('tvTitleInput');
+    var inputDepth = document.getElementById('tvDepthInput');
+
+    if (!inputWorkItems) return false;
+    var valWorkItems = inputWorkItems.value.trim();
+    if (!valWorkItems) return false;
+
+    var valTitle = inputTitle ? inputTitle.value.trim() : "";
+    var valDepth = inputDepth && inputDepth.value.trim() ? inputDepth.value.trim() : "6";
+
+    // Get current window or top location
+    var targetWin = window;
     try {
-        var topLoc = window.top.location.href;
-        if (topLoc) {
-            var href = topLoc;
-            if (href.indexOf('reqId=') !== -1) {
-                href = href.replace(/([?&])reqId=[^&]*/, '$1reqId=' + encodeURIComponent(val));
-            } else {
-                if (href.indexOf('#') !== -1) {
-                    var parts = href.split('#');
-                    var base = parts[0];
-                    var hash = parts.slice(1).join('#');
-                    var sep = base.indexOf('?') !== -1 ? '&' : '?';
-                    href = base + sep + 'reqId=' + encodeURIComponent(val) + '#' + hash;
-                } else {
-                    var sep = href.indexOf('?') !== -1 ? '&' : '?';
-                    href = href + sep + 'reqId=' + encodeURIComponent(val);
-                }
-            }
-            if (e && e.preventDefault) { e.preventDefault(); }
-            window.top.location.href = href;
-            return false;
+        if (window.top && window.top.location && window.top.location.href) {
+            targetWin = window.top;
         }
-    } catch(err) {
-        // Fall back to standard form GET submission if cross-origin or top location inaccessible
+    } catch(err) {}
+
+    var href = targetWin.location.href;
+
+    // Clean any existing query params before '#' to prevent 'polarion/?WorkItems=...#/' format
+    if (href.indexOf('?') !== -1 && href.indexOf('#') !== -1 && href.indexOf('?') < href.indexOf('#')) {
+        var preHash = href.substring(0, href.indexOf('?'));
+        var hashPart = href.substring(href.indexOf('#'));
+        href = preHash + hashPart;
     }
 
-    return true;
+    // Extract base URL before query parameters in hash part
+    var baseHashRoute = href;
+    if (baseHashRoute.indexOf('?') !== -1) {
+        baseHashRoute = baseHashRoute.substring(0, baseHashRoute.indexOf('?'));
+    }
+
+    // Always construct complete query string with Title, WorkItems, and Depth
+    var queryParams = "Title=" + encodeURIComponent(valTitle) +
+                      "&WorkItems=" + encodeURIComponent(valWorkItems) +
+                      "&Depth=" + encodeURIComponent(valDepth);
+
+    href = baseHashRoute + "?" + queryParams;
+
+    targetWin.location.href = href;
+    return false;
+}
+
+function tvCopyUrl() {
+    var el = document.getElementById('tvGeneratedUrlText');
+    if (el) {
+        navigator.clipboard.writeText(el.innerText || el.textContent);
+        alert('Generated Trace URL copied to clipboard!');
+    }
 }
 </script>
 
@@ -202,12 +244,14 @@ function tvApplyTrace(e) {
         </div>
 
         <form id="tvTraceForm" method="GET" onsubmit="return tvApplyTrace(event);">
+            <input type="hidden" id="tvTitleInput" name="Title" value="$!paramTitle" />
+            <input type="hidden" id="tvDepthInput" name="Depth" value="$!paramDepth" />
             <div class="tv-form-group">
-                <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID:</label>
+                <label class="tv-label" for="tvReqInput">Enter Functional Requirement Work Item ID(s):</label>
                 <div class="tv-input-row">
-                    <input type="text" id="tvReqInput" name="reqId" class="tv-input-text"
+                    <input type="text" id="tvReqInput" name="WorkItems" class="tv-input-text"
                            value="$!selectedReqId"
-                           placeholder="e.g. REQ-101, 0030-176, or FUNC-204" />
+                           placeholder="e.g. 0030-12551, 0030-176, or comma-separated IDs" />
                     <button type="submit" class="tv-btn tv-btn-primary">Apply</button>
                 </div>
             </div>
@@ -216,17 +260,64 @@ function tvApplyTrace(e) {
 
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        ## Search work item using Polarion Tracker Service via double-quoted Velocity string interpolation
-        #set($query = "id:${selectedReqId}")
+        ## Extract primary ID if comma-separated list was provided
+        #set($firstReqId = $selectedReqId)
+        #if($selectedReqId.contains(","))
+            #set($idParts = $selectedReqId.split(","))
+            #set($firstReqId = $idParts.get(0).trim())
+        #end
+
+        ## Search root work item using Polarion Tracker Service
+        #set($query = "id:${firstReqId}")
         #set($workItems = $trackerService.queryWorkItems($query, "id"))
 
         #if($workItems.isEmpty())
             <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
                 <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
-                No requirement found matching ID <code>$selectedReqId</code>
             </div>
         #else
             #set($rootItem = $workItems.get(0))
+
+            ## Collect linked item IDs for URL construction
+            #set($linkedIdsList = [$rootItem.id])
+            #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
+            #foreach($link in $directLinks)
+                #set($target = false)
+                #set($target = $link.linkedItem)
+                #if($target)
+                    #if(!$linkedIdsList.contains($target.id))
+                        #set($dummy = $linkedIdsList.add($target.id))
+                    #end
+                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                        #set($subTarget = false)
+                        #set($subTarget = $subLink.linkedItem)
+                        #if($subTarget)
+                            #if(!$linkedIdsList.contains($subTarget.id))
+                                #set($dummy = $linkedIdsList.add($subTarget.id))
+                            #end
+                        #end
+                    #end
+                #end
+            #end
+
+            ## Join linked IDs with '%2C%20' for exact URL format
+            #set($workItemsUrlParam = "")
+            #foreach($itemId in $linkedIdsList)
+                #if($velocityCount == 1)
+                    #set($workItemsUrlParam = $itemId)
+                #else
+                    #set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${itemId}")
+                #end
+            #end
+
+            ## Determine Title for URL
+            #set($titleUrlParam = $rootItem.title)
+            #if($paramTitle && $paramTitle != "")
+                #set($titleUrlParam = $paramTitle)
+            #end
+
+            ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
+            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
 
             <div class="tv-card">
                 <!-- Requirement Title Banner -->
@@ -238,6 +329,13 @@ function tvApplyTrace(e) {
                         Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
                     </div>
                 </div>
+
+                <!-- Generated URL Box -->
+                <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+                    <span>🔗 Generated Functional Traceability Analyzer URL:</span>
+                    <button type="button" class="tv-btn tv-btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="tvCopyUrl();">📋 Copy URL</button>
+                </div>
+                <div class="tv-url-box" id="tvGeneratedUrlText">$generatedTraceUrl</div>
 
                 <!-- Linked Items -->
                 <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
