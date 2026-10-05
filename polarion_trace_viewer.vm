@@ -2,35 +2,12 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.5")
-
+#set($scriptVersion = "v1.0.6")
+#set($DEBUG = true)
 ## Parameter Extraction Variables
-## Safe parameter reading with fallback for Polarion Rich Pages / Script Widgets / Classic Wiki
 #set($selectedReqId = "")
 #set($paramTitle = "")
 #set($paramDepth = "6")
-
-#if($request && $request.getParameter("WorkItems") && $request.getParameter("WorkItems").trim() != "")
-    #set($selectedReqId = $request.getParameter("WorkItems").trim())
-#elseif($request && $request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
-    #set($selectedReqId = $request.getParameter("reqId").trim())
-#elseif($pageParameters && $pageParameters.get("WorkItems") && $pageParameters.get("WorkItems").value && $pageParameters.get("WorkItems").value.trim() != "")
-    #set($selectedReqId = $pageParameters.get("WorkItems").value.trim())
-#elseif($pageParameters && $pageParameters.get("reqId") && $pageParameters.get("reqId").value && $pageParameters.get("reqId").value.trim() != "")
-    #set($selectedReqId = $pageParameters.get("reqId").value.trim())
-#end
-
-#if($request && $request.getParameter("Title") && $request.getParameter("Title").trim() != "")
-    #set($paramTitle = $request.getParameter("Title").trim())
-#elseif($pageParameters && $pageParameters.get("Title") && $pageParameters.get("Title").value)
-    #set($paramTitle = $pageParameters.get("Title").value.trim())
-#end
-
-#if($request && $request.getParameter("Depth") && $request.getParameter("Depth").trim() != "")
-    #set($paramDepth = $request.getParameter("Depth").trim())
-#elseif($pageParameters && $pageParameters.get("Depth") && $pageParameters.get("Depth").value)
-    #set($paramDepth = $pageParameters.get("Depth").value.trim())
-#end
 
 <style>
 .polarion-trace-viewer {
@@ -264,6 +241,7 @@ function tvCopyUrl() {
         alert('Generated Trace URL copied to clipboard!');
     }
 }
+
 </script>
 
 <div class="polarion-trace-viewer">
@@ -290,15 +268,69 @@ function tvCopyUrl() {
             </div>
         </form>
     </div>
-
+    
+	#set($wi_input = "$urlParameters")
+	#if($DEBUG) URL Parameters: $wi_input<br/>#end
+	#if($wi_input && $wi_input.length() > 0 && $wi_input.contains("WorkItems="))
+    	#if($DEBUG) URL Parameters contain "WorkItems=": $wi_input<br>#end
+		#set($start_wi = $wi_input.indexOf(", WorkItems="))
+        #if($DEBUG) Start Index of the word "WorkItems=": $start_wi<br>#end
+    	#set($end_wi = $wi_input.indexOf(", Depth="))
+        #if($DEBUG) Stop Index of the  Work Items IDs: $end_wi<br>#end
+		#if($start_wi >= 0 && $end_wi > $start_wi)
+        	#set($workItemsStartPos = $start_wi + 12)
+    		#set($workItems = $wi_input.substring($workItemsStartPos, $end_wi).trim())
+    		#if($DEBUG)List of Work Items IDs: $workItems<br>#end
+            	#set($count = 1)
+	 			#if($workItems.contains(","))
+    	        	#set($workItemsIdParts = $workItems.split(","))
+					#if($DEBUG) Multiple Work Items IDs Detected:<br/>#end
+					#set($workItemsUrlParam = "")
+                    ## Extract primary ID if comma-separated list was provided
+        	        #foreach($id in $workItemsIdParts)
+            	   		#if($DEBUG) $id.trim()<br/>#end	
+ 						#if($count ==1) #set($firstReqId = $id.trim())#end
+						## Join linked IDs with '%2C%20' for exact URL format
+						#set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${id}")
+                        #set($count = $count +1)
+                	#end
+             	#else 
+             		#set($id = $workItems)
+                	#if($DEBUG) Singel Work Item ID Detected: $id<br/>#end
+                    #set($firstReqId = $id.trim())
+                     #set($workItemsUrlParam = $itemId)
+            	#end
+                #if($DEBUG) First Work Item ID: $firstReqId<br/>#end
+			#end
+            ## Determine Title for URL
+            #if($DEBUG) First Work ID: $firstReqId<br/>#end
+			#set($query = "id:${firstReqId}")
+			#if($DEBUG) Query: $query<br/>#end
+			#set($selectedworkItem = $trackerService.queryWorkItems($query, "id"))
+            #if($DEBUG) Selected Work Item ID: $selectedworkItem<br/>#end
+            #foreach($item in $selectedworkItem)	
+                #if($DEBUG) Item: $item<br/>#end
+                #if($DEBUG) Item Title: $item.getTitle()<br/>#end
+				#if($DEBUG) Header length: $item.getTitle.length()<br/>#end
+                #if($item.getTitle().length() < 25) 
+                	#set($maxlength = $item.getTitle().length())
+                 #else
+                 	#set($maxlength = 25)
+                #end
+				#if($DEBUG) Max Header Trim length: $maxlength<br/>#end
+            	#set($paramTitle = $item.getTitle().substring(0,$maxlength).trim())
+				#if($DEBUG) Trimed URL Title: $paramTitle<br/>#end
+                #if($paramTitle && $paramTitle != "")
+                	#set($titleUrlParam = $paramTitle)
+                #end
+            #end
+            ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
+            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
+    		 #if($DEBUG) URL: $generatedTraceUrl<br/>#end
+        #end
+    
     ## Process Trace if Requirement ID provided
     #if($selectedReqId && $selectedReqId != "")
-        ## Extract primary ID if comma-separated list was provided
-        #set($firstReqId = $selectedReqId)
-        #if($selectedReqId.contains(","))
-            #set($idParts = $selectedReqId.split(","))
-            #set($firstReqId = $idParts.get(0).trim())
-        #end
 
         ## Search root work item using Polarion Tracker Service
         #set($query = "id:${firstReqId}")
@@ -333,25 +365,6 @@ function tvCopyUrl() {
                     #end
                 #end
             #end
-
-            ## Join linked IDs with '%2C%20' for exact URL format
-            #set($workItemsUrlParam = "")
-            #foreach($itemId in $linkedIdsList)
-                #if($velocityCount == 1)
-                    #set($workItemsUrlParam = $itemId)
-                #else
-                    #set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${itemId}")
-                #end
-            #end
-
-            ## Determine Title for URL
-            #set($titleUrlParam = $rootItem.title)
-            #if($paramTitle && $paramTitle != "")
-                #set($titleUrlParam = $paramTitle)
-            #end
-
-            ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
-            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
 
             <div class="tv-card">
                 <!-- Requirement Title Banner -->
@@ -428,3 +441,4 @@ function tvCopyUrl() {
         #end
     #end
 </div>
+        
