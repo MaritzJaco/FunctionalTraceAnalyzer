@@ -9,7 +9,7 @@ def test_velocity_template():
         content = f.read()
 
     # 1. Check version badge
-    assert 'v1.0.4' in content, "Missing v1.0.4 version badge"
+    assert 'v1.0.5' in content, "Missing v1.0.5 version badge"
 
     # 2. Check HTML input box and submit button
     assert '<input type="text" id="tvReqInput" name="WorkItems"' in content, "Missing requirement text input box with WorkItems parameter"
@@ -30,7 +30,6 @@ def test_velocity_template():
     assert '#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=' in content, "Missing URL construction base"
     assert '&WorkItems=' in content, "Missing WorkItems URL parameter construct"
     assert '&Depth=' in content, "Missing Depth URL parameter construct"
-    assert 'Title=' in content and 'WorkItems=' in content and 'Depth=' in content, "All three query parameters must be present"
 
     # 5. Check Polarion Java Open API references & simplified structure
     assert '$trackerService.queryWorkItems' in content, "Missing Polarion trackerService query"
