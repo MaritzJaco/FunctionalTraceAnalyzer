@@ -2,7 +2,7 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.7")
+#set($scriptVersion = "v1.0.8")
 #set($DEBUG = false)
 
 ## Parameter Extraction Variables
@@ -73,17 +73,25 @@
     #set($selectedworkItem = $trackerService.queryWorkItems($query, "id"))
     #if($selectedworkItem && !$selectedworkItem.isEmpty())
         #set($item = $selectedworkItem.get(0))
-        #set($rawTitle = $item.getTitle())
-        #if($rawTitle && $rawTitle.length() > 0)
-            #if($rawTitle.length() < 25)
-                #set($maxlength = $rawTitle.length())
-            #else
-                #set($maxlength = 25)
+        #if(!$item.unresolvable)
+            #set($rawTitle = $item.getTitle())
+            #if($rawTitle && $rawTitle.length() > 0)
+                #if($rawTitle.length() < 25)
+                    #set($maxlength = $rawTitle.length())
+                #else
+                    #set($maxlength = 25)
+                #end
+                #set($paramTitle = $rawTitle.substring(0, $maxlength).trim())
+                #set($titleUrlParam = $paramTitle)
             #end
-            #set($paramTitle = $rawTitle.substring(0, $maxlength).trim())
-            #set($titleUrlParam = $paramTitle)
         #end
     #end
+#end
+
+## Sanitize title for safe JS string literal
+#set($safeJsParamTitle = "")
+#if($paramTitle && $paramTitle != "")
+    #set($safeJsParamTitle = $paramTitle.replace('\', '\\').replace('"', '\"').replace("'", "\'"))
 #end
 
 ## Construct full trace URL
@@ -236,6 +244,11 @@
     padding: 2px 6px;
     border-radius: 4px;
 }
+.tv-restricted {
+    color: #b91c1c;
+    font-style: italic;
+    background: #fef2f2;
+}
 </style>
 
 <script type="text/javascript">
@@ -261,7 +274,7 @@
             var inputTi = document.getElementById('tvTitleInput');
             var inputDe = document.getElementById('tvDepthInput');
 
-            var serverTitle = "$!paramTitle";
+            var serverTitle = "$!safeJsParamTitle";
             if (inputWi && workItems && !inputWi.value) { inputWi.value = workItems; }
             if (inputTi && (title || serverTitle)) { inputTi.value = title || serverTitle; }
             if (inputDe && depth) { inputDe.value = depth; }
@@ -331,6 +344,7 @@ function tvApplyTrace(e) {
     href = baseHashRoute + "?" + queryParams;
 
     targetWin.location.href = href;
+    targetWin.location.reload();
     return false;
 }
 
@@ -380,80 +394,104 @@ function tvCopyUrl() {
             </div>
         #else
             #set($rootItem = $workItemsList.get(0))
-            #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
 
-            <div class="tv-card">
-                <!-- Requirement Title Banner -->
-                <div class="tv-req-banner">
-                    <div class="tv-req-title">
-                        Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
+            #if($rootItem.unresolvable)
+                <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
+                    <strong style="color:#dc2626;">🔒 Permission Denied:</strong>
+                    Access to work item <code>$firstReqId</code> is restricted.
+                </div>
+            #else
+                #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
+
+                <div class="tv-card">
+                    <!-- Requirement Title Banner -->
+                    <div class="tv-req-banner">
+                        <div class="tv-req-title">
+                            Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
+                        </div>
+                        <div class="tv-req-meta">
+                            Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
+                        </div>
                     </div>
-                    <div class="tv-req-meta">
-                        Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
+
+                    <!-- Generated URL Box -->
+                    <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+                        <span>🔗 Generated Functional Traceability Analyzer URL:</span>
+                        <button type="button" class="tv-btn tv-btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="tvCopyUrl();">📋 Copy URL</button>
                     </div>
-                </div>
+                    <div class="tv-url-box" id="tvGeneratedUrlText">$generatedTraceUrl</div>
 
-                <!-- Generated URL Box -->
-                <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
-                    <span>🔗 Generated Functional Traceability Analyzer URL:</span>
-                    <button type="button" class="tv-btn tv-btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="tvCopyUrl();">📋 Copy URL</button>
-                </div>
-                <div class="tv-url-box" id="tvGeneratedUrlText">$generatedTraceUrl</div>
+                    <!-- Linked Items -->
+                    <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
+                        Linked Items / Traceability Results
+                    </div>
 
-                <!-- Linked Items -->
-                <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
-                    Linked Items / Traceability Results
-                </div>
-
-                #if($directLinks.isEmpty())
-                    <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
-                #else
-                    <table class="tv-table">
-                        <thead>
-                            <tr>
-                                <th>Linked Work Item ID</th>
-                                <th>Relationship</th>
-                                <th>Type</th>
-                                <th>Title</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            #foreach($link in $directLinks)
-                                #set($target = false)
-                                #set($target = $link.linkedItem)
-                                #if($target)
-                                    #set($role = false)
-                                    #set($role = $link.linkRole.name)
-                                    <tr>
-                                        <td><span class="tv-item-id">$!target.id</span></td>
-                                        <td><span class="tv-rel">$!role</span></td>
-                                        <td>$!target.type.name</td>
-                                        <td>$!target.title</td>
-                                        <td>$!target.status.name</td>
-                                    </tr>
-                                    ## Check sub-links (level 2)
-                                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
-                                        #set($subTarget = false)
-                                        #set($subTarget = $subLink.linkedItem)
-                                        #if($subTarget)
-                                            #set($subRole = false)
-                                            #set($subRole = $subLink.linkRole.name)
-                                            <tr style="background:#f8fafc;">
-                                                <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
-                                                <td><span class="tv-rel">$!subRole</span></td>
-                                                <td>$!subTarget.type.name</td>
-                                                <td>$!subTarget.title</td>
-                                                <td>$!subTarget.status.name</td>
+                    #if($directLinks.isEmpty())
+                        <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
+                    #else
+                        <table class="tv-table">
+                            <thead>
+                                <tr>
+                                    <th>Linked Work Item ID</th>
+                                    <th>Relationship</th>
+                                    <th>Type</th>
+                                    <th>Title</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                #foreach($link in $directLinks)
+                                    #set($target = false)
+                                    #set($target = $link.linkedItem)
+                                    #if($target)
+                                        #set($role = false)
+                                        #set($role = $link.linkRole.name)
+                                        #if($target.unresolvable)
+                                            <tr class="tv-restricted">
+                                                <td><span class="tv-item-id">$!target.id</span></td>
+                                                <td><span class="tv-rel">$!role</span></td>
+                                                <td colspan="3">🔒 <em>Restricted [Permission Denied]</em></td>
                                             </tr>
+                                        #else
+                                            <tr>
+                                                <td><span class="tv-item-id">$!target.id</span></td>
+                                                <td><span class="tv-rel">$!role</span></td>
+                                                <td>$!target.type.name</td>
+                                                <td>$!target.title</td>
+                                                <td>$!target.status.name</td>
+                                            </tr>
+                                            ## Check sub-links (level 2)
+                                            #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                                                #set($subTarget = false)
+                                                #set($subTarget = $subLink.linkedItem)
+                                                #if($subTarget)
+                                                    #set($subRole = false)
+                                                    #set($subRole = $subLink.linkRole.name)
+                                                    #if($subTarget.unresolvable)
+                                                        <tr class="tv-restricted" style="background:#fef2f2;">
+                                                            <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
+                                                            <td><span class="tv-rel">$!subRole</span></td>
+                                                            <td colspan="3">🔒 <em>Restricted [Permission Denied]</em></td>
+                                                        </tr>
+                                                    #else
+                                                        <tr style="background:#f8fafc;">
+                                                            <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
+                                                            <td><span class="tv-rel">$!subRole</span></td>
+                                                            <td>$!subTarget.type.name</td>
+                                                            <td>$!subTarget.title</td>
+                                                            <td>$!subTarget.status.name</td>
+                                                        </tr>
+                                                    #end
+                                                #end
+                                            #end
                                         #end
                                     #end
                                 #end
-                            #end
-                        </tbody>
-                    </table>
-                #end
-            </div>
+                            </tbody>
+                        </table>
+                    #end
+                </div>
+            #end
         #end
     #end
 </div>
