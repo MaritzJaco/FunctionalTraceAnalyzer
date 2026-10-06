@@ -2,35 +2,92 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.5")
+#set($scriptVersion = "v1.0.7")
+#set($DEBUG = false)
 
 ## Parameter Extraction Variables
-## Safe parameter reading with fallback for Polarion Rich Pages / Script Widgets / Classic Wiki
 #set($selectedReqId = "")
 #set($paramTitle = "")
 #set($paramDepth = "6")
 
-#if($request && $request.getParameter("WorkItems") && $request.getParameter("WorkItems").trim() != "")
-    #set($selectedReqId = $request.getParameter("WorkItems").trim())
-#elseif($request && $request.getParameter("reqId") && $request.getParameter("reqId").trim() != "")
-    #set($selectedReqId = $request.getParameter("reqId").trim())
-#elseif($pageParameters && $pageParameters.get("WorkItems") && $pageParameters.get("WorkItems").value && $pageParameters.get("WorkItems").value.trim() != "")
-    #set($selectedReqId = $pageParameters.get("WorkItems").value.trim())
-#elseif($pageParameters && $pageParameters.get("reqId") && $pageParameters.get("reqId").value && $pageParameters.get("reqId").value.trim() != "")
-    #set($selectedReqId = $pageParameters.get("reqId").value.trim())
+## Safely extract parameters from $urlParameters Map or string representation
+#if($urlParameters)
+    #if($urlParameters.get("WorkItems"))
+        #set($selectedReqId = $urlParameters.get("WorkItems").toString().trim())
+    #elseif($urlParameters.get("reqId"))
+        #set($selectedReqId = $urlParameters.get("reqId").toString().trim())
+    #end
+    #if($urlParameters.get("Title"))
+        #set($paramTitle = $urlParameters.get("Title").toString().trim())
+    #end
+    #if($urlParameters.get("Depth"))
+        #set($paramDepth = $urlParameters.get("Depth").toString().trim())
+    #end
 #end
 
-#if($request && $request.getParameter("Title") && $request.getParameter("Title").trim() != "")
-    #set($paramTitle = $request.getParameter("Title").trim())
-#elseif($pageParameters && $pageParameters.get("Title") && $pageParameters.get("Title").value)
-    #set($paramTitle = $pageParameters.get("Title").value.trim())
+## Fallback string search if $urlParameters object method access is unavailable
+#if(!$selectedReqId || $selectedReqId == "")
+    #set($wi_input = "$!urlParameters")
+    #if($wi_input.contains("WorkItems="))
+        #set($wi_parts = $wi_input.split("WorkItems="))
+        #if($wi_parts.size() > 1)
+            #set($wi_val_part = $wi_parts.get(1))
+            #if($wi_val_part.contains(","))
+                #set($selectedReqId = $wi_val_part.split(",").get(0).replace("}", "").trim())
+            #elseif($wi_val_part.contains("&"))
+                #set($selectedReqId = $wi_val_part.split("&").get(0).replace("}", "").trim())
+            #else
+                #set($selectedReqId = $wi_val_part.replace("}", "").trim())
+            #end
+        #end
+    #end
 #end
 
-#if($request && $request.getParameter("Depth") && $request.getParameter("Depth").trim() != "")
-    #set($paramDepth = $request.getParameter("Depth").trim())
-#elseif($pageParameters && $pageParameters.get("Depth") && $pageParameters.get("Depth").value)
-    #set($paramDepth = $pageParameters.get("Depth").value.trim())
+## Extract primary Work Item ID if comma-separated list is provided
+#set($firstReqId = "")
+#set($workItemsUrlParam = "")
+#if($selectedReqId && $selectedReqId != "")
+    #if($selectedReqId.contains(","))
+        #set($workItemsIdParts = $selectedReqId.split(","))
+        #set($count = 1)
+        #foreach($idPart in $workItemsIdParts)
+            #set($cleanId = $idPart.trim())
+            #if($count == 1)
+                #set($firstReqId = $cleanId)
+                #set($workItemsUrlParam = $cleanId)
+            #else
+                #set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${cleanId}")
+            #end
+            #set($count = $count + 1)
+        #end
+    #else
+        #set($firstReqId = $selectedReqId.trim())
+        #set($workItemsUrlParam = $firstReqId)
+    #end
 #end
+
+## Query primary work item & compute 25-character title before HTML form rendering
+#set($titleUrlParam = "")
+#if($firstReqId && $firstReqId != "")
+    #set($query = "id:${firstReqId}")
+    #set($selectedworkItem = $trackerService.queryWorkItems($query, "id"))
+    #if($selectedworkItem && !$selectedworkItem.isEmpty())
+        #set($item = $selectedworkItem.get(0))
+        #set($rawTitle = $item.getTitle())
+        #if($rawTitle && $rawTitle.length() > 0)
+            #if($rawTitle.length() < 25)
+                #set($maxlength = $rawTitle.length())
+            #else
+                #set($maxlength = 25)
+            #end
+            #set($paramTitle = $rawTitle.substring(0, $maxlength).trim())
+            #set($titleUrlParam = $paramTitle)
+        #end
+    #end
+#end
+
+## Construct full trace URL
+#set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
 
 <style>
 .polarion-trace-viewer {
@@ -182,31 +239,51 @@
 </style>
 
 <script type="text/javascript">
-// Extract URL parameters client-side from window location hash or search
+// Extract URL parameters client-side and sync server-calculated Title into browser address bar
 (function initTvParams() {
-    try {
-        var href = window.top ? window.top.location.href : window.location.href;
-        var queryStr = "";
-        if (href.indexOf('?') !== -1) {
-            queryStr = href.substring(href.indexOf('?') + 1);
-            if (queryStr.indexOf('#') !== -1) {
-                queryStr = queryStr.substring(0, queryStr.indexOf('#'));
+    function runSync() {
+        try {
+            var targetWin = window.top || window;
+            var href = targetWin.location.href;
+            var queryStr = "";
+            if (href.indexOf('?') !== -1) {
+                queryStr = href.substring(href.indexOf('?') + 1);
+                if (queryStr.indexOf('#') !== -1) {
+                    queryStr = queryStr.substring(0, queryStr.indexOf('#'));
+                }
             }
-        }
-        var searchParams = new URLSearchParams(queryStr);
-        var workItems = searchParams.get("WorkItems") || searchParams.get("reqId") || "";
-        var title = searchParams.get("Title") || "";
-        var depth = searchParams.get("Depth") || "6";
+            var searchParams = new URLSearchParams(queryStr);
+            var workItems = searchParams.get("WorkItems") || searchParams.get("reqId") || "";
+            var title = searchParams.get("Title") || "";
+            var depth = searchParams.get("Depth") || "6";
 
-        window.addEventListener('DOMContentLoaded', function() {
             var inputWi = document.getElementById('tvReqInput');
             var inputTi = document.getElementById('tvTitleInput');
             var inputDe = document.getElementById('tvDepthInput');
+
+            var serverTitle = "$!paramTitle";
             if (inputWi && workItems && !inputWi.value) { inputWi.value = workItems; }
-            if (inputTi && title) { inputTi.value = title; }
+            if (inputTi && (title || serverTitle)) { inputTi.value = title || serverTitle; }
             if (inputDe && depth) { inputDe.value = depth; }
-        });
-    } catch(err) {}
+
+            // Immediately update browser address bar with server-calculated title if Title parameter is empty or stale
+            if (serverTitle && title !== serverTitle) {
+                var curUrl = targetWin.location.href;
+                if (curUrl.indexOf('Title=') !== -1) {
+                    var newUrl = curUrl.replace(/([?&])Title=[^&]*/, '$1Title=' + encodeURIComponent(serverTitle));
+                    if (targetWin.history && targetWin.history.replaceState) {
+                        targetWin.history.replaceState(null, '', newUrl);
+                    }
+                }
+            }
+        } catch(err) {}
+    }
+
+    if (document.readyState === 'interactive' || document.readyState === 'complete') {
+        runSync();
+    } else {
+        window.addEventListener('DOMContentLoaded', runSync);
+    }
 })();
 
 function tvApplyTrace(e) {
@@ -292,66 +369,18 @@ function tvCopyUrl() {
     </div>
 
     ## Process Trace if Requirement ID provided
-    #if($selectedReqId && $selectedReqId != "")
-        ## Extract primary ID if comma-separated list was provided
-        #set($firstReqId = $selectedReqId)
-        #if($selectedReqId.contains(","))
-            #set($idParts = $selectedReqId.split(","))
-            #set($firstReqId = $idParts.get(0).trim())
-        #end
-
-        ## Search root work item using Polarion Tracker Service
+    #if($firstReqId && $firstReqId != "")
         #set($query = "id:${firstReqId}")
-        #set($workItems = $trackerService.queryWorkItems($query, "id"))
+        #set($workItemsList = $trackerService.queryWorkItems($query, "id"))
 
-        #if($workItems.isEmpty())
+        #if($workItemsList.isEmpty())
             <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
                 <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
                 No requirement found matching ID <code>$firstReqId</code>
             </div>
         #else
-            #set($rootItem = $workItems.get(0))
-
-            ## Collect linked item IDs for URL construction
-            #set($linkedIdsList = [$rootItem.id])
+            #set($rootItem = $workItemsList.get(0))
             #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
-            #foreach($link in $directLinks)
-                #set($target = false)
-                #set($target = $link.linkedItem)
-                #if($target)
-                    #if(!$linkedIdsList.contains($target.id))
-                        #set($dummy = $linkedIdsList.add($target.id))
-                    #end
-                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
-                        #set($subTarget = false)
-                        #set($subTarget = $subLink.linkedItem)
-                        #if($subTarget)
-                            #if(!$linkedIdsList.contains($subTarget.id))
-                                #set($dummy = $linkedIdsList.add($subTarget.id))
-                            #end
-                        #end
-                    #end
-                #end
-            #end
-
-            ## Join linked IDs with '%2C%20' for exact URL format
-            #set($workItemsUrlParam = "")
-            #foreach($itemId in $linkedIdsList)
-                #if($velocityCount == 1)
-                    #set($workItemsUrlParam = $itemId)
-                #else
-                    #set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${itemId}")
-                #end
-            #end
-
-            ## Determine Title for URL
-            #set($titleUrlParam = $rootItem.title)
-            #if($paramTitle && $paramTitle != "")
-                #set($titleUrlParam = $paramTitle)
-            #end
-
-            ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
-            #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
 
             <div class="tv-card">
                 <!-- Requirement Title Banner -->
