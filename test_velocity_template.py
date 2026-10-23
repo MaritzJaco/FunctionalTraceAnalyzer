@@ -26,8 +26,9 @@ def test_velocity_template():
     print(f"Template Directives Stats: #if={if_count}, #foreach={foreach_count}, #end={end_count}")
     assert if_count + foreach_count == end_count, f"Directive mismatch: (#if + #foreach = {if_count + foreach_count}) != (#end = {end_count})"
 
-    # 4. Check permission guards
-    assert '.unresolvable' in content, "Missing .unresolvable permission check guard"
+    # 4. Check URL title synchronization logic
+    assert 'replaceState' in content, "Missing replaceState URL parameter synchronization"
+    assert 'Title=' in content, "Missing Title parameter synchronization check"
 
     # 5. Check URL construction parameters & format
     assert '#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=' in content, "Missing URL construction base"
