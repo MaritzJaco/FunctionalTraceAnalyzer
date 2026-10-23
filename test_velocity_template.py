@@ -29,6 +29,7 @@ def test_velocity_template():
     # 4. Check URL title synchronization logic
     assert 'replaceState' in content, "Missing replaceState URL parameter synchronization"
     assert 'Title=' in content, "Missing Title parameter synchronization check"
+    assert '.unresolvable' in content, "Missing .unresolvable permission check guard"
 
     # 5. Check URL construction parameters & format
     assert '#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=' in content, "Missing URL construction base"
