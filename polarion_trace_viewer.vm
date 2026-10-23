@@ -2,100 +2,12 @@
 ## Works in Polarion ALM Rich Page / Script Widget / Classic Wiki Page
 
 ## Version Definition
-#set($scriptVersion = "v1.0.8")
-#set($DEBUG = false)
-
+#set($scriptVersion = "v1.0.7")
 ## Parameter Extraction Variables
 #set($selectedReqId = "")
 #set($paramTitle = "")
 #set($paramDepth = "6")
-
-## Safely extract parameters from $urlParameters Map or string representation
-#if($urlParameters)
-    #if($urlParameters.get("WorkItems"))
-        #set($selectedReqId = $urlParameters.get("WorkItems").toString().trim())
-    #elseif($urlParameters.get("reqId"))
-        #set($selectedReqId = $urlParameters.get("reqId").toString().trim())
-    #end
-    #if($urlParameters.get("Title"))
-        #set($paramTitle = $urlParameters.get("Title").toString().trim())
-    #end
-    #if($urlParameters.get("Depth"))
-        #set($paramDepth = $urlParameters.get("Depth").toString().trim())
-    #end
-#end
-
-## Fallback string search if $urlParameters object method access is unavailable
-#if(!$selectedReqId || $selectedReqId == "")
-    #set($wi_input = "$!urlParameters")
-    #if($wi_input.contains("WorkItems="))
-        #set($wi_parts = $wi_input.split("WorkItems="))
-        #if($wi_parts.size() > 1)
-            #set($wi_val_part = $wi_parts.get(1))
-            #if($wi_val_part.contains(","))
-                #set($selectedReqId = $wi_val_part.split(",").get(0).replace("}", "").trim())
-            #elseif($wi_val_part.contains("&"))
-                #set($selectedReqId = $wi_val_part.split("&").get(0).replace("}", "").trim())
-            #else
-                #set($selectedReqId = $wi_val_part.replace("}", "").trim())
-            #end
-        #end
-    #end
-#end
-
-## Extract primary Work Item ID if comma-separated list is provided
-#set($firstReqId = "")
-#set($workItemsUrlParam = "")
-#if($selectedReqId && $selectedReqId != "")
-    #if($selectedReqId.contains(","))
-        #set($workItemsIdParts = $selectedReqId.split(","))
-        #set($count = 1)
-        #foreach($idPart in $workItemsIdParts)
-            #set($cleanId = $idPart.trim())
-            #if($count == 1)
-                #set($firstReqId = $cleanId)
-                #set($workItemsUrlParam = $cleanId)
-            #else
-                #set($workItemsUrlParam = "${workItemsUrlParam}%2C%20${cleanId}")
-            #end
-            #set($count = $count + 1)
-        #end
-    #else
-        #set($firstReqId = $selectedReqId.trim())
-        #set($workItemsUrlParam = $firstReqId)
-    #end
-#end
-
-## Query primary work item & compute 25-character title before HTML form rendering
-#set($titleUrlParam = "")
-#if($firstReqId && $firstReqId != "")
-    #set($query = "id:${firstReqId}")
-    #set($selectedworkItem = $trackerService.queryWorkItems($query, "id"))
-    #if($selectedworkItem && !$selectedworkItem.isEmpty())
-        #set($item = $selectedworkItem.get(0))
-        #if(!$item.unresolvable)
-            #set($rawTitle = $item.getTitle())
-            #if($rawTitle && $rawTitle.length() > 0)
-                #if($rawTitle.length() < 25)
-                    #set($maxlength = $rawTitle.length())
-                #else
-                    #set($maxlength = 25)
-                #end
-                #set($paramTitle = $rawTitle.substring(0, $maxlength).trim())
-                #set($titleUrlParam = $paramTitle)
-            #end
-        #end
-    #end
-#end
-
-## Sanitize title for safe JS string literal
-#set($safeJsParamTitle = "")
-#if($paramTitle && $paramTitle != "")
-    #set($safeJsParamTitle = $paramTitle.replace('\', '\\').replace('"', '\"').replace("'", "\'"))
-#end
-
-## Construct full trace URL
-#set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
+#set($EXTRA_INFO = false)
 
 <style>
 .polarion-trace-viewer {
@@ -244,74 +156,144 @@
     padding: 2px 6px;
     border-radius: 4px;
 }
-.tv-restricted {
-    color: #b91c1c;
-    font-style: italic;
-    background: #fef2f2;
-}
 </style>
 
+	## Determine Title, WorkItems, and Depth from the base URL - Start ##
+    <script>console.log("***********Determine infor from the URL - Start***********"); </script>
+    #set($wi_input = "$urlParameters")
+    <script>console.log('URL Parameters: $wi_input'); </script>
+    #if($wi_input && $wi_input.length() > 30 && $wi_input.contains("WorkItems=0030-"))
+        <script>console.log('URL Parameters contain "WorkItems=": $wi_input'); </script>
+        #set($start_wi = $wi_input.indexOf(", WorkItems="))
+        <script>console.log('Start Index of the word "WorkItems=": $start_wi'); </script>
+        #set($end_wi = $wi_input.indexOf(", Depth="))
+        <script>console.log('Stop Index of the  Work Items IDs: $end_wi'); </script>
+        #if($start_wi >= 0 && $end_wi > $start_wi)
+            #set($workItemsStartPos = $start_wi + 12)
+            #set($workItems = $wi_input.substring($workItemsStartPos, $end_wi).trim())
+            <script>console.log('List of Work Items IDs: $workItems'); </script>
+            #set($count = 1)
+            #set($workItemsUrlParam = "")
+            #if($workItems.contains(",") && $workItems.contains("0030-"))
+                #set($WorkItemsSplit = $workItems.split(","))
+                <script>console.log('Multiple Work Items IDs Detected:'); </script>
+            #elseif($workItems.contains("0030-"))
+                 #set($WorkItemsSplit = $workItems.split("Depth"))
+                <script>console.log('Singel Work Item ID Detected: $WorkItemsSplit'); </script>
+            #else
+				<script>console.log('Invalid Work Item ID Detected: $id'); </script>
+            #end
+            ## Extract primary ID if comma-separated list was provided
+            #foreach($id in $WorkItemsSplit)
+                <script>console.log(' $id.trim()'); </script>
+                #if($count ==1) #set($firstReqId = $id.trim())#end
+                ## Join linked IDs
+                #set($workItemsUrlParam = "${workItemsUrlParam}${id}")
+                #set($count = $count +1)
+            #end
+        #end
+        ## Determine Title for URL
+        <script>console.log('First Work ID: $firstReqId'); </script>
+        #set($query = "id:${firstReqId}")
+        <script>console.log('Query: $query'); </script>
+        #set($selectedworkItem = $trackerService.queryWorkItems($query, "id"))
+        <script>console.log('Selected Work Item ID: $selectedworkItem'); </script>
+        #foreach($item in $selectedworkItem)
+            <script>console.log('Item: $item'); </script>
+            <script>console.log('Item Title: $item.getTitle()'); </script>
+            <script>console.log('Title length: $item.getTitle.length()'); </script>
+            #if($item.getTitle().length() < 25)
+                #set($maxlength = $item.getTitle().length())
+            #else
+                #set($maxlength = 25)
+            #end
+            <script>console.log('Max = 25, Header Trim length: $maxlength'); </script>
+            #set($paramTitle = $item.getTitle().substring(0,$maxlength).trim())
+            #if($paramTitle && $paramTitle != "")
+                #set($titleUrlParam = $paramTitle)
+                <script>console.log('URL Title: $paramTitle'); </script>
+            #end
+        #end
+        ## Construct full URL placed strictly after the hash route, always including Title, WorkItems, and Depth
+        #set($generatedTraceUrl = "https://polarion.asml.com/polarion/#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=${titleUrlParam}&WorkItems=${workItemsUrlParam}&Depth=${paramDepth}")
+        <script>console.log('URL: $generatedTraceUrl'); </script>
+    #else
+        <script>console.log('No URL Parameters found'); </script>
+    #end
+    <script>console.log("***********Determine infor from the URL - End***********"); </script>
+    ## Determine Title, WorkItems, and Depth from the base URL - End ##
+
 <script type="text/javascript">
-// Extract URL parameters client-side and sync server-calculated Title into browser address bar
+console.log("********************Script Start********************");
+// Extract URL parameters client-side from window location hash or search
 (function initTvParams() {
+	console.log("********************initTvParams - Start********************");
     function runSync() {
+        console.log("********************runSync - start********************");
         try {
-            var targetWin = window.top || window;
-            var href = targetWin.location.href;
+            var href = window.top ? window.top.location.href : window.location.href;
+            console.log("URL: ", href);
             var queryStr = "";
             if (href.indexOf('?') !== -1) {
                 queryStr = href.substring(href.indexOf('?') + 1);
+				console.log("queryStr?: ", queryStr);
                 if (queryStr.indexOf('#') !== -1) {
                     queryStr = queryStr.substring(0, queryStr.indexOf('#'));
+                    console.log("queryStr#: ", queryStr);
                 }
             }
             var searchParams = new URLSearchParams(queryStr);
             var workItems = searchParams.get("WorkItems") || searchParams.get("reqId") || "";
             var title = searchParams.get("Title") || "";
             var depth = searchParams.get("Depth") || "6";
+			console.log("searchParams: ", searchParams);
+			console.log("workItems: ", workItems);
+			console.log("title: ", title);
+			console.log("depth: ", depth);
 
-            var inputWi = document.getElementById('tvReqInput');
-            var inputTi = document.getElementById('tvTitleInput');
-            var inputDe = document.getElementById('tvDepthInput');
-
-            var serverTitle = "$!safeJsParamTitle";
-            if (inputWi && workItems && !inputWi.value) { inputWi.value = workItems; }
-            if (inputTi && (title || serverTitle)) { inputTi.value = title || serverTitle; }
-            if (inputDe && depth) { inputDe.value = depth; }
-
-            // Immediately update browser address bar with server-calculated title if Title parameter is empty or stale
-            if (serverTitle && title !== serverTitle) {
-                var curUrl = targetWin.location.href;
-                if (curUrl.indexOf('Title=') !== -1) {
-                    var newUrl = curUrl.replace(/([?&])Title=[^&]*/, '$1Title=' + encodeURIComponent(serverTitle));
-                    if (targetWin.history && targetWin.history.replaceState) {
-                        targetWin.history.replaceState(null, '', newUrl);
-                    }
-                }
-            }
-        } catch(err) {}
+            window.addEventListener('DOMContentLoaded', function() {
+                var inputWi = document.getElementById('tvReqInput');
+                var inputTi = document.getElementById('tvTitleInput');
+                var inputDe = document.getElementById('tvDepthInput');
+				console.log("inputWi: ", inputWi);
+				console.log("inputTi: ", inputTi);
+				console.log("inputDe: ", inputDe);
+                if (inputWi && workItems && !inputWi.value) { inputWi.value = workItems; }
+                if (inputTi && title) { inputTi.value = title; }
+                if (inputDe && depth) { inputDe.value = depth; }
+				console.log("inputWi.value: ", inputWi.value);
+				console.log("inputTi.value: ", inputTi.value);
+				console.log("inputDe.value: ", inputDe.value);
+            });
+        }
+        catch(err) {}
+        console.log("********************runSync - End********************");
     }
-
-    if (document.readyState === 'interactive' || document.readyState === 'complete') {
-        runSync();
-    } else {
-        window.addEventListener('DOMContentLoaded', runSync);
-    }
+    runSync();
+    console.log("********************initTvParams - End********************");
 })();
 
 function tvApplyTrace(e) {
+	console.log("****************tvApplyTrace - Start****************");
     if (e && e.preventDefault) { e.preventDefault(); }
 
-    var inputWorkItems = document.getElementById('tvReqInput');
-    var inputTitle = document.getElementById('tvTitleInput');
+    ##var inputWorkItems = document.getElementById('tvReqInput');
+	var inputWorkItems = document.getElementById('tvReqInput');
+    ##var inputTitle = document.getElementById('tvTitleInput');
     var inputDepth = document.getElementById('tvDepthInput');
 
-    if (!inputWorkItems) return false;
     var valWorkItems = inputWorkItems.value.trim();
-    if (!valWorkItems) return false;
+    if (!valWorkItems) {
+		console.log("tvApplyTrace No work Items returning: false");
+	return false;
+    }
 
-    var valTitle = inputTitle ? inputTitle.value.trim() : "";
+    ##var valTitle = inputTitle ? inputTitle.value.trim() : "Jaco";
+    var valTitle = "$!titleUrlParam";
     var valDepth = inputDepth && inputDepth.value.trim() ? inputDepth.value.trim() : "6";
+
+    console.log("Browser WorkItems: ", valWorkItems);
+    console.log("Browser Title: ", valTitle);
 
     // Get current window or top location
     var targetWin = window;
@@ -344,16 +326,24 @@ function tvApplyTrace(e) {
     href = baseHashRoute + "?" + queryParams;
 
     targetWin.location.href = href;
+    console.log("URL baseHashRoute: ", baseHashRoute );
+    console.log("URL queryParams: ", queryParams );
+    console.log("URL: ", href );
+	console.log("*****************tvApplyTrace - End*****************");
     return false;
 }
 
 function tvCopyUrl() {
+	console.log("********************tvCopyUrl - Start********************");
     var el = document.getElementById('tvGeneratedUrlText');
     if (el) {
         navigator.clipboard.writeText(el.innerText || el.textContent);
         alert('Generated Trace URL copied to clipboard!');
     }
+    console.log("********************tvCopyUrl - End********************");
 }
+
+console.log("********************Script End********************");
 </script>
 
 <div class="polarion-trace-viewer">
@@ -381,116 +371,210 @@ function tvCopyUrl() {
         </form>
     </div>
 
-    ## Process Trace if Requirement ID provided
-    #if($firstReqId && $firstReqId != "")
-        #set($query = "id:${firstReqId}")
-        #set($workItemsList = $trackerService.queryWorkItems($query, "id"))
+    <!-- Generated URL Box -->
+        <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
+            <span>🔗 Generated Functional Traceability Analyzer URL:</span>
+            <button
+		type="button"
+                class="tv-btn tv-btn-primary"
+                style="padding: 4px 10px; font-size: 11px;"
+                onclick="console.log('Copy URL button clicked');
+                               tvCopyUrl();">📋 Copy URL
+            </button>
+        </div>
+        <div class="tv-url-box" id="tvGeneratedUrlText">$generatedTraceUrl</div>
 
-        #if($workItemsList.isEmpty())
+    ## Process Trace if Requirement ID provided
+    <script>console.log("*********Process Trace if Requirement ID provided - Start************");</script>
+    <script>console.log("List of Work Items IDs: $workItems"); </script>
+    <script>console.log("Items in list of Work Items IDs:"); </script>
+    #foreach($id in $WorkItemsSplit)
+        #set($id = $id.trim())
+        <script>console.log(" $id"); </script>
+        #set($query = "id:${id}")
+        <script>console.log("Query: $query"); </script>
+        #set($selectedworkItem = $trackerService.queryWorkItems($query, "id"))
+        <script>console.log('Selected Work Item ID: $selectedworkItem'); </script>
+        #if($selectedworkItem.isEmpty())
+            <script>console.log("Work Item(s) empty"); </script>
             <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
                 <strong style="color:#dc2626;">⚠️ Work Item Not Found:</strong>
-                No requirement found matching ID <code>$firstReqId</code>
+                No requirement found matching ID <code>$selectedworkItem</code>
             </div>
         #else
-            #set($rootItem = $workItemsList.get(0))
+             ## Collect linked item IDs for URL construction
+            #foreach($Item in $selectedworkItem)
+                #if($EXTRA_INFO)
+                    <script>console.log('getModule: $Item.getModule()'); </script>
+                    <script>console.log('getExternalLinkingModules: $Item.getExternalLinkingModules()'); </script>
+                    <script>console.log('getOutlineNumber: $Item.getOutlineNumber()'); </script>
+                    <script>console.log('getTitle: $Item.getTitle()'); </script>
+                    <script>console.log('getDescription: $Item.getDescription()'); </script>
+                    <script>console.log('getResolution: $Item.getResolution()'); </script>
+                    <script>console.log('getCategories: $Item.getCategories()'); </script>
+                    <script>console.log('getTimePoint: $Item.getTimePoint()'); </script>
+                    <script>console.log('getApprovals: $Item.getApprovals()'); </script>
+                    <script>console.log('getLinkedRevisions: $Item.getLinkedRevisions()'); </script>
+                    <script>console.log('getLinkedRevisionsDirect: $Item.getLinkedRevisionsDirect()'); </script>
+                    <script>console.log('getLinkedRevisionsDerived: $Item.getLinkedRevisionsDerived()'); </script>
+                    <script>console.log('getAssignees: $Item.getAssignees()'); </script>
+                    <script>console.log('getAllowedAssignees: $Item.getAllowedAssignees()'); </script>
+                    <script>console.log('getAllowedApprovers: $Item.getAllowedApprovers()'); </script>
+                    <script>console.log('getAuthor: $Item.getAuthor()'); </script>
+                    <script>console.log('getComments: $Item.getComments()'); </script>
+                    <script>console.log('getRootComments: $Item.getRootComments()'); </script>
+                    <script>console.log('getLinkedWorkItemsStructsDirect: $Item.getLinkedWorkItemsStructsDirect()'); </script>
+                    <script>console.log('getLinkedWorkItemsStructsBack: $Item.getLinkedWorkItemsStructsBack()'); </script>
+                    <script>console.log('getExternallyLinkedWorkItemsStructs: $Item.getExternallyLinkedWorkItemsStructs()'); </script>
+                    <script>console.log('getExternallyLinkedWorkItemsStructsDirect: $Item.getExternallyLinkedWorkItemsStructsDirect()'); </script>
+                    <script>console.log('getLinkedWorkItems: $Item.getLinkedWorkItems()'); </script>
+                    <script>console.log('getLinkedWorkItemsDirect: $Item.getLinkedWorkItemsDirect()'); </script>
+                    <script>console.log('getLinkedWorkItemsBack: $Item.getLinkedWorkItemsBack()'); </script>
+                    <script>console.log('getHyperlinks: $Item.getHyperlinks()'); </script>
+                    <script>console.log('getPlanningConstraints: $Item.getPlanningConstraints()'); </script>
+                    <script>console.log('getDueDate: $Item.getDueDate()'); </script>
+                    <script>console.log('getInitialEstimate: $Item.getInitialEstimate()'); </script>
+                    <script>console.log('getTimeSpent: $Item.getTimeSpent()'); </script>
+                    <script>console.log('getRemainingEstimate: $Item.getRemainingEstimate()'); </script>
+                    <script>console.log('getCreated: $Item.getCreated()'); </script>
+                    <script>console.log('getUpdated: $Item.getUpdated()'); </script>
+                    <script>console.log('getPlannedStart: $Item.getPlannedStart()'); </script>
+                    <script>console.log('getPlannedEnd: $Item.getPlannedEnd()'); </script>
+                    <script>console.log('getPlannedIn: $Item.getPlannedIn()'); </script>
+                    <script>console.log('getResolvedOn: $Item.getResolvedOn()'); </script>
+                    <script>console.log('getVotesCount: $Item.getVotesCount()'); </script>
+                    <script>console.log('getVotes: $Item.getVotes()'); </script>
+                    <script>console.log('getWatchingUsers: $Item.getWatchingUsers()'); </script>
+                    <script>console.log('getPriority: $Item.getPriority()'); </script>
+                    ##<script>console.log('getClosestStandardOpt: $Item.getClosestStandardOpt(getFloat)'); </script>
+                    <script>console.log('getSeverity: $Item.getSeverity()'); </script>
+                    <script>console.log('getWorkRecords: $Item.getWorkRecords()'); </script>
+                    <script>console.log('getLocation: $Item.getLocation()'); </script>
+                    <script>console.log('getTestCase: $Item.getTestCase()'); </script>
+                    <script>console.log('getLabel: $Item.getLabel()'); </script>
+                    #end
 
-            #if($rootItem.unresolvable)
-                <div class="tv-card" style="border-color:#fca5a5; background:#fef2f2;">
-                    <strong style="color:#dc2626;">🔒 Permission Denied:</strong>
-                    Access to work item <code>$firstReqId</code> is restricted.
+                <script>console.log('ID: $Item.getId(), Title: $Item.getTitle()'); </script>
+                <script>console.log('Resolution: $Item.getResolution()'); </script>
+
+                <script>console.log('Link Item List:'); </script>
+                #foreach($linkItem in $Item.getLinkedWorkItems())
+                    <script>console.log('    ID: $linkItem.getId(), Title: $linkItem.getTitle()'); </script>
+                #end
+                <script>console.log("Direct Links:"); </script>
+                #foreach($directlink in $Item.getLinkedWorkItemsDirect())
+                    <script>console.log('    ID: $directlink.getId(), Title: $directlink.getTitle()'); </script>
+                #end
+            #end
+
+             #set($rootItem = $selectedworkItem.get(0))
+             <script>console.log("rootItem: $rootItem,    rootItem ID: $rootItem.id"); </script>
+
+            #set($linkedIdsList  = [$rootItem.id])
+            <script>console.log('Link ID List: $linkedIdsList'); </script>
+            #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
+            <script>console.log('Direct Link ID List: $directLinks'); </script>
+
+            #foreach($link in $directLinks)
+                 <script>console.log('**********Processign direct link Struct**********'); </script>
+                #set($target = false)
+                #set($target = $link.linkedItem)
+                <script>console.log('Target: $target'); </script>
+                #if($target)
+                    #if(!$linkedIdsList.contains($target.id))
+                        #set($dummy = $linkedIdsList.add($target.id))
+                        <script>console.log("Target Dummy: $dummy"); </script>
+                    #end
+                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                        <script>console.log('**********Processign sub direct link - Start**********'); </script>
+                        #set($subTarget = false)
+                        #set($subTarget = $subLink.linkedItem)
+                        <script>console.log('subTarget: $subTarget'); </script>
+                        #if($subTarget)
+                            #if(!$linkedIdsList.contains($subTarget.id))
+                                #set($dummy = $linkedIdsList.add($subTarget.id))
+                                <script>console.log("subTarget Dummy: $dummy"); </script>
+                            #end
+                        #end
+                    <script>console.log('**********Processign sub direct link - End**********'); </script>
+                    #end
+                #end
+            <script>console.log('**********Processign direct link Struct - End**********'); </script>
+            #end
+            <div class="tv-card">
+                <!-- Requirement Title Banner -->
+                <div class="tv-req-banner">
+                    <div class="tv-req-title">
+                        Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
+                    </div>
+                    <div class="tv-req-meta">
+                        Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
+                    </div>
                 </div>
-            #else
-                #set($directLinks = $rootItem.linkedWorkItemsStructsDirect)
 
-                <div class="tv-card">
-                    <!-- Requirement Title Banner -->
-                    <div class="tv-req-banner">
-                        <div class="tv-req-title">
-                            Requirement: <span class="tv-item-id">$!rootItem.id</span> - $!rootItem.title
-                        </div>
-                        <div class="tv-req-meta">
-                            Type: <strong>$!rootItem.type.name</strong> | Status: <strong>$!rootItem.status.name</strong>
-                        </div>
-                    </div>
 
-                    <!-- Generated URL Box -->
-                    <div style="font-weight: 700; font-size: 13px; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; justify-content: space-between;">
-                        <span>🔗 Generated Functional Traceability Analyzer URL:</span>
-                        <button type="button" class="tv-btn tv-btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="tvCopyUrl();">📋 Copy URL</button>
-                    </div>
-                    <div class="tv-url-box" id="tvGeneratedUrlText">$generatedTraceUrl</div>
-
-                    <!-- Linked Items -->
-                    <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
-                        Linked Items / Traceability Results
-                    </div>
-
-                    #if($directLinks.isEmpty())
-                        <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
-                    #else
-                        <table class="tv-table">
-                            <thead>
-                                <tr>
-                                    <th>Linked Work Item ID</th>
-                                    <th>Relationship</th>
-                                    <th>Type</th>
-                                    <th>Title</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                #foreach($link in $directLinks)
-                                    #set($target = false)
-                                    #set($target = $link.linkedItem)
-                                    #if($target)
-                                        #set($role = false)
-                                        #set($role = $link.linkRole.name)
-                                        #if($target.unresolvable)
-                                            <tr class="tv-restricted">
-                                                <td><span class="tv-item-id">$!target.id</span></td>
-                                                <td><span class="tv-rel">$!role</span></td>
-                                                <td colspan="3">🔒 <em>Restricted [Permission Denied]</em></td>
+                <!-- Linked Items -->
+                <div style="font-weight: 700; font-size: 15px; margin-bottom: 10px; color: #0f172a;">
+                    Linked Items / Traceability Results
+                </div>
+                #if($directlinks.isEmpty())
+                    <p style="color: #64748b; font-style: italic;">No linked work items found for this requirement.</p>
+                #else
+                    <script>console.log('**********Processign roles - Start**********'); </script>
+                    <table class="tv-table">
+                        <thead>
+                            <tr>
+                                <th>Linked Work Item ID</th>
+                                <th>Relationship</th>
+                                <th>Type</th>
+                                <th>Title</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            #foreach($link in $directLinks)
+                                <script>console.log('**********Processign direct link Roles - Start**********'); </script>
+                                #set($target = false)
+                                #set($target = $link.linkedItem)
+                                <script>console.log('RoleTarget: $target'); </script>
+                                #if($target)
+                                    #set($role = false)
+                                    #set($role = $link.linkRole.name)
+                                    <script>console.log('role: $role'); </script>
+                                    <tr>
+                                        <td><span class="tv-item-id">$!target.id</span></td>
+                                        <td><span class="tv-rel">$!role</span></td>
+                                        <td>$!target.type.name</td>
+                                        <td>$!target.title</td>
+                                        <td>$!target.status.name</td>
+                                    </tr>
+                                    ## Check sub-links (level 2)
+                                    #foreach($subLink in $target.linkedWorkItemsStructsDirect)
+                                        <script>console.log('**********Processign direct sublink Roles - Start**********'); </script>
+                                        #set($subTarget = false)
+                                        #set($subTarget = $subLink.linkedItem)
+                                        <script>console.log('subRoleTarget: $subTarget'); </script>
+                                        #if($subTarget)
+                                            #set($subRole = false)
+                                            #set($subRole = $subLink.linkRole.name)
+                                            <tr style="background:#f8fafc;">
+                                                <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
+                                                <td><span class="tv-rel">$!subRole</span></td>
+                                                <td>$!subTarget.type.name</td>
+                                                <td>$!subTarget.title</td>
+                                                <td>$!subTarget.status.name</td>
                                             </tr>
-                                        #else
-                                            <tr>
-                                                <td><span class="tv-item-id">$!target.id</span></td>
-                                                <td><span class="tv-rel">$!role</span></td>
-                                                <td>$!target.type.name</td>
-                                                <td>$!target.title</td>
-                                                <td>$!target.status.name</td>
-                                            </tr>
-                                            ## Check sub-links (level 2)
-                                            #foreach($subLink in $target.linkedWorkItemsStructsDirect)
-                                                #set($subTarget = false)
-                                                #set($subTarget = $subLink.linkedItem)
-                                                #if($subTarget)
-                                                    #set($subRole = false)
-                                                    #set($subRole = $subLink.linkRole.name)
-                                                    #if($subTarget.unresolvable)
-                                                        <tr class="tv-restricted" style="background:#fef2f2;">
-                                                            <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
-                                                            <td><span class="tv-rel">$!subRole</span></td>
-                                                            <td colspan="3">🔒 <em>Restricted [Permission Denied]</em></td>
-                                                        </tr>
-                                                    #else
-                                                        <tr style="background:#f8fafc;">
-                                                            <td style="padding-left: 20px;">↳ <span class="tv-item-id">$!subTarget.id</span></td>
-                                                            <td><span class="tv-rel">$!subRole</span></td>
-                                                            <td>$!subTarget.type.name</td>
-                                                            <td>$!subTarget.title</td>
-                                                            <td>$!subTarget.status.name</td>
-                                                        </tr>
-                                                    #end
-                                                #end
-                                            #end
                                         #end
                                     #end
                                 #end
-                            </tbody>
-                        </table>
-                    #end
-                </div>
-            #end
+                                <script>console.log('**********Processign direct link Roles - End**********'); </script>
+                            #end
+                        </tbody>
+                    </table>
+                <script>console.log('**********Processign roles - End**********'); </script>
+                #end
+            </div>
         #end
     #end
+    <script>console.log("*********Process Trace if Requirement ID provided - End************");</script>
 </div>

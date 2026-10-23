@@ -9,7 +9,7 @@ def test_velocity_template():
         content = f.read()
 
     # 1. Check version badge
-    assert 'v1.0.8' in content, "Missing v1.0.8 version badge"
+    assert 'v1.0.7' in content, "Missing v1.0.7 version badge"
 
     # 2. Check HTML input box and submit button
     assert '<input type="text" id="tvReqInput" name="WorkItems"' in content, "Missing requirement text input box with WorkItems parameter"
@@ -26,20 +26,13 @@ def test_velocity_template():
     print(f"Template Directives Stats: #if={if_count}, #foreach={foreach_count}, #end={end_count}")
     assert if_count + foreach_count == end_count, f"Directive mismatch: (#if + #foreach = {if_count + foreach_count}) != (#end = {end_count})"
 
-    # 4. Check URL title synchronization logic
-    assert 'replaceState' in content, "Missing replaceState URL parameter synchronization"
-    assert 'Title=' in content, "Missing Title parameter synchronization check"
-    assert '.unresolvable' in content, "Missing .unresolvable permission check guard"
-
-    # 5. Check URL construction parameters & format
+    # 4. Check URL construction parameters & format
     assert '#/project/0030/wiki/Report/Functional%20Traceability%20Analyzer?Title=' in content, "Missing URL construction base"
     assert '&WorkItems=' in content, "Missing WorkItems URL parameter construct"
     assert '&Depth=' in content, "Missing Depth URL parameter construct"
 
-    # 6. Check Polarion Java Open API references & structure
+    # 5. Check Polarion Java Open API references & structure
     assert '$trackerService.queryWorkItems' in content, "Missing Polarion trackerService query"
-    assert 'linkedWorkItemsStructsDirect' in content, "Missing linked work items traversal"
-    assert '$link.linkedItem' in content, "Missing Polarion ILinkedWorkItemStruct.linkedItem property reference"
 
     print("All Velocity Template validation checks PASSED successfully!")
 
