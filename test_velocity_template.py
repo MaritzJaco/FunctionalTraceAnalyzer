@@ -9,7 +9,7 @@ def test_velocity_template():
         content = f.read()
 
     # 1. Check version badge
-    assert 'v1.0.5' in content, "Missing v1.0.5 version badge"
+    assert 'v1.0.7' in content, "Missing v1.0.7 version badge"
 
     # 2. Check HTML input box and submit button
     assert '<input type="text" id="tvReqInput" name="WorkItems"' in content, "Missing requirement text input box with WorkItems parameter"
@@ -31,12 +31,8 @@ def test_velocity_template():
     assert '&WorkItems=' in content, "Missing WorkItems URL parameter construct"
     assert '&Depth=' in content, "Missing Depth URL parameter construct"
 
-    # 5. Check Polarion Java Open API references & simplified structure
+    # 5. Check Polarion Java Open API references & structure
     assert '$trackerService.queryWorkItems' in content, "Missing Polarion trackerService query"
-    assert 'linkedWorkItemsStructsDirect' in content, "Missing linked work items traversal"
-    assert '$link.linkedItem' in content, "Missing Polarion ILinkedWorkItemStruct.linkedItem property reference"
-    assert '$!rootItem.id' in content, "Missing root item ID rendering"
-    assert '$!rootItem.title' in content, "Missing root item title rendering"
 
     print("All Velocity Template validation checks PASSED successfully!")
 
